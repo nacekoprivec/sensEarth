@@ -1,0 +1,17 @@
+{
+    "file_name": "data/ads-1.csv",
+    "anomaly_detection_alg": ["MACD()"],
+    "anomaly_detection_conf": [
+        {
+            "input_vector_size": 1,
+            "period1": 6,
+            "period2": 32,
+            "warning_stages": [0.8, 0.5, 0.2],
+            "UL": 1.0,
+            "LL": -0.8,
+            "filtering": "None",
+            "output": ["TerminalOutput()"],
+            "output_conf": [{}]
+        }
+    ]
+}

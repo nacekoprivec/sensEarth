@@ -1,0 +1,14 @@
+{
+    "file_name": "ads-1.csv",
+    "anomaly_detection_alg": ["fb_Prophet()"],
+    "anomaly_detection_conf": [{
+        "uncertainty_interval": 0.95,
+        "forecast_horizons": [30, "D"],
+        "min_samples": 10,
+        "max_samples": 1000,
+        "retrain_interval": 50,
+        "history_file": "ads-2.csv",
+        "output": ["TerminalOutput()"],
+        "output_conf": [{}]
+    }]
+}

@@ -1,0 +1,15 @@
+{
+    "file_name": "data/ads-1.csv",
+    "anomaly_detection_alg": ["EMA_Percentile()"],
+    "anomaly_detection_conf": [
+        {
+            "input_vector_size": 1,
+            "percentile": 5,
+            "window": 20,
+            "start_on": 20,
+            "period": 30,
+            "output": ["TerminalOutput()"],
+            "output_conf": [{}]
+        }
+    ]
+}

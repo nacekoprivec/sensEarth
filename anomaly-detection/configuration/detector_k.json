@@ -1,0 +1,22 @@
+{
+  "anomaly_detection_alg": [
+    "BorderCheck()"
+  ],
+  "anomaly_detection_conf": [
+    {
+      "input_vector_size": 1,
+      "warning_stages": [
+        2.5,
+        0.0
+      ],
+      "UL": 3.0,
+      "LL": -0.4,
+      "output": [
+        "TerminalOutput()"
+      ],
+      "output_conf": [
+        {}
+      ]
+    }
+  ]
+}

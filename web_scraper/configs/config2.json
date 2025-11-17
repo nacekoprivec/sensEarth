@@ -1,0 +1,9 @@
+{
+  "name": "detector2",
+  "config_name": "border_check.json",
+  "description": "default description",
+  "target_url": "http://hmljn.arso.gov.si/vode/podatki/stanje_voda_samodejne.html",
+  "selector": "table.online",
+  "fetch_interval": 1,
+  "limit_results": 1
+}

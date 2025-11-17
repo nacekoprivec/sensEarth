@@ -1,0 +1,2 @@
+# Space for pilot experiments
+This directory is dedicated to run concrete experiments for your pilots and use cases. Create a separate subdirectory and store potential data and notebooks there. You can get inspiration for the notebooks from `../template.ipynb`.

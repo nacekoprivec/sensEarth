@@ -1,0 +1,17 @@
+{
+    "file_name": "data/ads-1.csv",
+    "anomaly_detection_alg": ["Filtering()"],
+    "anomaly_detection_conf": [
+        {
+            "input_vector_size": 1,
+            "mode": 1,
+            "filter_order": 5,
+            "cutoff_frequency": 0.22,
+            "UL": 0.25,
+            "LL": -1.2,
+            "warning_stages": [0.7, 0.9],
+            "output": ["TerminalOutput()"],
+            "output_conf": [{}]
+        }
+    ]
+}

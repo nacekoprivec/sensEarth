@@ -1,0 +1,22 @@
+{
+    "file_name": "data/ads-1.csv",
+    
+    "anomaly_detection_alg": ["GAN()"],
+    "anomaly_detection_conf": [
+        {   
+            "filtering":"None",
+            "train_data": "data/ads-1.csv",
+            "train_conf":{
+                "model_name": "GAN_sensor_cleaning",
+                "N_shifts": 0,
+                "N_latent": 4,
+                "K": 0.4,
+                "len_window": 250
+            },
+            
+            "input_vector_size": 1,    
+            "output": ["TerminalOutput()"],
+            "output_conf": [{}]
+        }
+    ]
+}

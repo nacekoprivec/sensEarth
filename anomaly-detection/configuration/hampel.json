@@ -1,0 +1,14 @@
+{
+    "file_name": "data/ads-1.csv",
+    "anomaly_detection_alg": ["Hampel()"],
+    "anomaly_detection_conf": [
+        {
+            "input_vector_size": 1, 
+            "n_sigmas": 2.0,        
+            "W": 12,               
+            "K": 2,     
+            "output": ["TerminalOutput()"],  
+            "output_conf": [{}]
+        }
+    ]
+}

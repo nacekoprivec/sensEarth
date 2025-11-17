@@ -1,0 +1,17 @@
+{
+    "file_name": "data/ads-1.csv",
+    "anomaly_detection_alg": ["Welford()"],
+    "anomaly_detection_conf": [
+        {
+            "input_vector_size": 1,
+            "warning_stages": [0.6, -1.0],
+            "UL": 0.8,
+            "LL": -1.2,
+            "X": 4,
+            "N": 30,
+            "filtering": "None",  
+            "output": ["TerminalOutput()"],
+            "output_conf": [{}]
+        }
+    ]
+}
