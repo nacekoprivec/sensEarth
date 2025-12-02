@@ -1,13 +1,12 @@
 {
-  "name": "detector3",
-  "config_name": "border_check.json",
-  "description": "default description",
-  "target_url": "http://hmljn.arso.gov.si/vode/podatki/stanje_voda_samodejne.html",
-  "selector": "table.online",
+  "name": "ARSO Water Levels",
+  "description": "Scraper for water level data from ARSO",
+  "target_url": "https://www.arso.gov.si/xml/vode/hidro_podatki_zadnji.xml",
   "fetch_interval": 1,
-  "limit_results": 1,
+  "selector": "None",
+  "limit_results": 10,
 
-  "locationonly": false,
   "sensor_type": "water_level",
-  "sensor_node": "None"
+  "sensor_node": "None",
+  "unit": "cm"
 }

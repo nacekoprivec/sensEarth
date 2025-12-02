@@ -6,6 +6,8 @@ import argparse
 from typing import Dict, Any, Optional
 import traceback
 
+from httpcore import Response
+
 from fastapi import APIRouter, Query, Request, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from sqlalchemy import Float
@@ -23,6 +25,8 @@ from .models import Log, AnomalyDetector
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
+
+from ..raw_storage import upload_raw_data, download_raw_data, list_raw_objects
 
 from .schemas import *
 from .exceptions import *
@@ -219,3 +223,43 @@ async def get_available_configs():
         raise
     except Exception as e:
         raise InternalServerException(f"Failed to list available configs: {e}")
+
+
+@router.post("/raw/upload")
+async def upload_raw_file(
+    file: UploadFile = File(...),
+    source: str = Form(...),
+    timestamp: str = Form(...)     
+):
+    try:
+        bytes_data = await file.read()
+
+        object_name = f"{source}/{timestamp}_{file.filename}"
+
+        uploaded_path = upload_raw_data(
+            object_name=object_name,
+            data=bytes_data,
+            content_type=file.content_type
+        )
+
+        return {"status": "OK", "path": uploaded_path}
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    
+@router.get("/raw/{source}/{filename}")
+async def download_raw_file(source: str, filename: str):
+    object_name = f"{source}/{filename}"
+    file_bytes = download_raw_data(object_name)
+
+    if file_bytes is None:
+        raise HTTPException(404, "File not found")
+
+    return Response(file_bytes)
+
+@router.get("/raw/list")
+async def list_raw_files(source: str = ""):
+    prefix = f"{source}/" if source else ""
+    objects = list_raw_objects(prefix=prefix)
+    return {"objects": objects}
+

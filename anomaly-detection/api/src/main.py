@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 from datetime import *
 import traceback
 from .component.exceptions import create_exception_handlers
+from .raw_storage import init_bucket
+
 
 app = FastAPI()
 
@@ -24,6 +26,8 @@ app.add_middleware(
 
 app.include_router(router)
 create_exception_handlers(app)
+init_bucket()
+
 
 
 

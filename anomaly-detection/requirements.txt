@@ -8,3 +8,8 @@ scipy==1.6.1
 scikit_learn==1.0.1
 matplotlib==3.3.4
 influxdb_client==1.20.0 pip install tensorflow==2.4.0
+fastapi==0.70.0
+uvicorn==0.15.0
+sqlalchemy==1.4.22
+minio>=7.1.0
+

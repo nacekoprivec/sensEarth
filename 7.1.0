@@ -1,0 +1,24 @@
+Collecting minio
+  Downloading minio-7.2.10-py3-none-any.whl.metadata (6.5 kB)
+Requirement already satisfied: certifi in c:\users\nacek\miniconda3\envs\sensearth\lib\site-packages (from minio) (2024.8.30)
+Requirement already satisfied: urllib3 in c:\users\nacek\miniconda3\envs\sensearth\lib\site-packages (from minio) (2.2.3)
+Collecting argon2-cffi (from minio)
+  Downloading argon2_cffi-25.1.0-py3-none-any.whl.metadata (4.1 kB)
+Collecting pycryptodome (from minio)
+  Downloading pycryptodome-3.23.0-cp37-abi3-win_amd64.whl.metadata (3.5 kB)
+Requirement already satisfied: typing-extensions in c:\users\nacek\miniconda3\envs\sensearth\lib\site-packages (from minio) (4.13.2)
+Collecting argon2-cffi-bindings (from argon2-cffi->minio)
+  Using cached argon2_cffi_bindings-21.2.0-cp36-abi3-win_amd64.whl.metadata (6.7 kB)
+Collecting cffi>=1.0.1 (from argon2-cffi-bindings->argon2-cffi->minio)
+  Downloading cffi-1.17.1-cp38-cp38-win_amd64.whl.metadata (1.6 kB)
+Collecting pycparser (from cffi>=1.0.1->argon2-cffi-bindings->argon2-cffi->minio)
+  Downloading pycparser-2.23-py3-none-any.whl.metadata (993 bytes)
+Downloading minio-7.2.10-py3-none-any.whl (93 kB)
+Downloading argon2_cffi-25.1.0-py3-none-any.whl (14 kB)
+Downloading pycryptodome-3.23.0-cp37-abi3-win_amd64.whl (1.8 MB)
+   ---------------------------------------- 1.8/1.8 MB 3.1 MB/s eta 0:00:00
+Using cached argon2_cffi_bindings-21.2.0-cp36-abi3-win_amd64.whl (30 kB)
+Downloading cffi-1.17.1-cp38-cp38-win_amd64.whl (181 kB)
+Downloading pycparser-2.23-py3-none-any.whl (118 kB)
+Installing collected packages: pycryptodome, pycparser, cffi, argon2-cffi-bindings, argon2-cffi, minio
+Successfully installed argon2-cffi-25.1.0 argon2-cffi-bindings-21.2.0 cffi-1.17.1 minio-7.2.10 pycparser-2.23 pycryptodome-3.23.0

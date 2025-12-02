@@ -1,5 +1,5 @@
 run app
-conda activate anomaly
+conda activate sensearth
 uvicorn api.src.main:app --reload
 
 API for Anomaly Detection Algorithms

@@ -16,7 +16,13 @@ Each config file should look like this:
   "limit_results": 1
 }
 
-## Run
+## Run Minio 
+
+docker compose up -d
+
+Go to http://localhost:9000
+
+## Run scrapers
 
 activate env
 conda activate web_scraper_env
@@ -35,3 +41,14 @@ python custom_scraper.py --detect config1 -ftr_vector 13 -timestamp 14
 
 
 
+{
+  "name": "ARSO Water Levels",
+  "description": "Scraper for water level data from ARSO",
+  "target_url": "http://hmljn.arso.gov.si/vode/podatki/stanje_voda_samodejne.html",
+  "fetch_interval": 1,
+  "selector": "None",
+  
+  "sensor_type": "water_level",
+  "sensor_node": "None",
+  "unit": "cm"
+}

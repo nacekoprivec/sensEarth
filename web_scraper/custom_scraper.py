@@ -1,5 +1,6 @@
 import sys
 import asyncio
+from xmlrpc import client
 
 if sys.platform.startswith("win") and sys.version_info >= (3, 8):
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -27,6 +28,12 @@ import json
 import os
 import argparse
 import threading
+
+import lxml.etree as etree
+
+from storage_pipeline import store_raw_response
+
+from minio import Minio
 
 
 API_URL = "http://127.0.0.1:8000"
@@ -59,6 +66,9 @@ class ScrapySpider(scrapy.Spider):
         content_type = response.headers.get("Content-Type", b"text/html").decode().lower()
         url_lower = response.url.lower()
 
+        # Store raw response in MinIO
+        store_raw_response(response)
+
         # Detect format from Content-Type or URL
         if "json" in content_type or url_lower.endswith(".json"):
             self.data_format = "json"
@@ -66,6 +76,9 @@ class ScrapySpider(scrapy.Spider):
         elif "csv" in content_type or url_lower.endswith(".csv"):
             self.data_format = "csv"
             return self.parse_csv(response)
+        elif "xml" in content_type or url_lower.endswith(".xml"):
+            self.data_format = "xml"
+            return self.parse_xml(response)
         else:
             self.data_format = "html"
             return self.parse_html(response)
@@ -109,6 +122,46 @@ class ScrapySpider(scrapy.Spider):
         except Exception as e:
             self.logger.error(f"CSV parse error: {e}")
 
+    def parse_xml(self, response):
+        try:
+            result_data = []
+            root = etree.fromstring(response.body)
+
+            stations = root.findall(".//postaja")
+            count = 0
+            for st in stations:
+                attrs = st.attrib  
+
+                record = {
+                    "sifra": attrs.get("sifra"),
+                    "longitude_wgs84": float(attrs.get("wgs84_dolzina", 0)),
+                    "latitude_wgs84": float(attrs.get("wgs84_sirina", 0)),
+                    "kota_0": float(attrs.get("kota_0", 0)),
+                }
+
+                for child in st:
+                    tag = child.tag.strip()
+                    text = child.text.strip() if child.text else None
+
+                    if text is None:
+                        record[tag] = None
+                    else:
+                        try:
+                            record[tag] = float(text) if "." in text or text.isdigit() else text
+                        except:
+                            record[tag] = text
+
+                result_data.append(record)
+                print(record)
+
+                count += 1
+                if self.limit_results and count >= self.limit_results:
+                    break
+            return result_data
+        except Exception as e:
+            self.logger.error(f"XML parse error: {e}\n{traceback.format_exc()}")
+
+
 def fetch_data(self):
     """Fetch data using Scrapy spider in a separate thread."""
     try:
@@ -122,17 +175,18 @@ def fetch_data(self):
         return []
 
 class Scraper:
-    def __init__(self, name, config_name, description, target_url, selector,
-                 fetch_interval=0, limit_results=1, api_url=API_URL):
+    def __init__(self, name, description, target_url, selector,
+                 fetch_interval=0, limit_results=1, sensor_type=None, sensor_node=None, unit=None, api_url=API_URL):
         self.name = name
-        self.config_name = config_name
         self.description = description
         self.target_url = target_url
         self.selector = selector
-        self.fetch_interval = fetch_interval * 60
+        self.fetch_interval = fetch_interval
         self.limit_results = limit_results
         self.api_url = api_url
-        self.detector_id = None
+        self.sensor_type = sensor_type
+        self.sensor_node = sensor_node
+        self.unit = unit
 
     def fetch_data(self):
         """Fetch data using Scrapy spider in a separate thread."""
@@ -144,81 +198,8 @@ class Scraper:
         except Exception as e:
             print(f"[{self.name}] Scrapy fetch error: {e}")
             return []
-
-    def get_detectors(self):
-        """Fetch all anomaly detectors from FastAPI backend"""
-        try:
-            response = requests.get(f"{self.api_url}/detectors")
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            print(f"Error fetching detectors: {e}")
-            return []
-
-    def create_detector(self):
-        """Create a new detector if it doesn't already exist, and set self.detector_id."""
-        try:
-            detectors = self.get_detectors()
-
-            # Check if detector with same name exists
-            existing = [d for d in detectors if d.get("name") == self.name]
-            if existing:
-                detector = existing[0]
-                self.detector_id = detector.get("id")
-                print(f"Detector '{self.name}' already exists with ID {self.detector_id}.")
-                self.set_detector_status("active")
-                return detector
-
-            # Determine next detector_id
-            if detectors:
-                max_id = max(d.get("id", 0) for d in detectors)
-                self.detector_id = max_id + 1
-            else:
-                self.detector_id = 1
-
-            payload = {
-                "id": self.detector_id,
-                "name": self.name,
-                "description": self.description,
-                "config_name": self.config_name,
-            }
-
-            print(f"Creating new detector '{self.name}' with ID {self.detector_id}...")
-            response = requests.post(f"{self.api_url}/detectors/create", json=payload)
-            response.raise_for_status()
-            print(f"Created new detector '{self.name}' successfully.")
-            self.set_detector_status("active")
-            return response.json()
-
-        except Exception as e:
-            print(f"Error creating detector {self.name}: {e}")
-            return None
-        
-    def set_detector_status(self, status: str):
-        """Set detector status to 'active' or 'inactive' via FastAPI endpoint."""
-        try:
-            url = f"{self.api_url}/detectors/{self.detector_id}/{status}"
-            response = requests.put(url)
-            response.raise_for_status()
-            print(f"[{self.name}] Detector {self.detector_id} status set to '{status}'")
-            return response.json()
-        except requests.RequestException as e:
-            print(f"[{self.name}] Error setting status to '{status}': {e}")
-            return None
     
-    def delete_detector(self):
-        """Delete the detector via FastAPI endpoint."""
-        try:
-            url = f"{self.api_url}/detectors/{self.detector_id}/delete"
-            response = requests.delete(url)
-            response.raise_for_status()
-            print(f"[{self.name}] Detector {self.detector_id} deleted successfully.")
-            return response.json()
-        except requests.RequestException as e:
-            print(f"[{self.name}] Error deleting detector: {e}")
-            return None
-
-    def is_anomaly(self, timestamp: str, ftr_vector: float, detector_id: int = 1):
+    def is_anomaly(self, timestamp: str, ftr_vector: float):
         """Check if provided feature vector is an anomaly."""
         try:
             url = f"{self.api_url}/detectors/{self.detector_id}/detect_anomaly"
@@ -234,6 +215,7 @@ class Scraper:
         """Continuously fetch data every fetch_interval seconds."""
         while True:
             data = self.fetch_data()
+        
             if data:
                 print(f"[{self.name}] Data: {data}")
                 result = self.is_anomaly(str(data[0][2]), float(data[0][3]))
@@ -256,20 +238,7 @@ def load_configs(selected=None):
                 conf = json.load(f)
                 conf["name"] = name
                 configs.append(conf)
-    return configs
-
-def delete_detector_by_id(detector_id: int, api_url=API_URL):
-    """Delete detector by ID via FastAPI endpoint."""
-    try:
-        url = f"{api_url}/detectors/{detector_id}"
-        response = requests.delete(url)
-        response.raise_for_status()
-        print(f"Detector {detector_id} deleted successfully.")
-        return response.json()
-    except requests.RequestException as e:
-        print(f"Error deleting detector {detector_id}: {e}")
-        return None
-    
+    return configs    
 
 async def main():
     parser = argparse.ArgumentParser(description="Anomaly Detector CLI")
@@ -277,8 +246,6 @@ async def main():
     parser.add_argument("--detect", type=str, help="Run anomaly detection for given detector name")
     parser.add_argument("-ftr_vector", type=float, help="Feature vector value for manual detection")
     parser.add_argument("-timestamp", type=str, help="Timestamp for manual detection")
-    parser.add_argument("--delete", type=str, help="Detector id for manual deletion")
-    parser.add_argument("--visualization", type=str, help="Detector id for visualization (not implemented)")
     args = parser.parse_args()
 
     # Load config(s)
@@ -288,8 +255,6 @@ async def main():
         if args.detect is None:
             # Initialize or create detectors from config
             scrapers = [Scraper(**cfg) for cfg in configs]
-            for scraper in scrapers:
-                scraper.create_detector()
             await asyncio.gather(*(scraper.run() for scraper in scrapers))
             return
 
@@ -300,19 +265,6 @@ async def main():
             print(f"No config found for detector '{args.detect}'")
             sys.exit(1)
         scraper = Scraper(**configs[0])
-        scraper.create_detector()
-        result = scraper.is_anomaly(args.timestamp, args.ftr_vector)
-        print(f"Manual anomaly detection for '{args.detect}':", result)
-    
-    # Manual deletion
-    if args.delete:
-        delete_detector_by_id(int(args.delete))
-        print(f"Deleted detector with ID {args.delete}")
-        return 0
-    
-    if args.visualization:
-        print("Visualization not implemented yet.")
-        return 0
-
+        
 if __name__ == "__main__":
     asyncio.run(main())
