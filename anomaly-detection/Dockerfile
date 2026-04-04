@@ -28,8 +28,8 @@ COPY ./monitoring ./monitoring
 ENV PYTHONPATH=/app:/app/src
 
 # Expose port for FastAPI
-EXPOSE 8000
+EXPOSE 5006
 
 # Run FastAPI with Uvicorn
-CMD ["uvicorn", "api.src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "api.src.main:app", "--host", "0.0.0.0", "--port", "5006"]
 

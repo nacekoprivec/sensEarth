@@ -56,7 +56,7 @@ services:
       dockerfile: Dockerfile
     working_dir: /app
     ports:
-      - "5006:8000"
+      - "5006:5006"
     depends_on:
       - sensearth-db
       - watchdog-api
@@ -79,7 +79,7 @@ services:
     depends_on:
       - middleware-api
     environment:
-      API_URL: http://middleware-api:8000
+      API_URL: http://middleware-api:5006
     volumes:
       - scraper_state:/app/state
     command: python scraper.py --config

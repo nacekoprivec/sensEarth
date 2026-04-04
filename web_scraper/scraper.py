@@ -26,7 +26,7 @@ EXTRACTOR_MAP = {
     "html": HTMLExtractor
 }
 
-API_URL = "http://middleware-api:8000"
+API_URL = "http://middleware-api:5006"
 STATE_DIR = "state"
 
 os.makedirs(STATE_DIR, exist_ok=True)
