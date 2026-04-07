@@ -7,6 +7,7 @@ import argparse
 import requests
 import time
 
+import traceback 
 from logger import logger
 from fetcher import Fetcher
 from mapper import Mapper
@@ -18,6 +19,8 @@ from extractors.csv_extractor import CSVExtractor
 from extractors.html_extractor import HTMLExtractor
 
 from monitoring.client import emit_component_registration, emit_event, emit_metric, emit_heartbeat
+
+from raw_data.raw_storage import download_raw_data, list_raw_objects
 
 EXTRACTOR_MAP = {
     "xml": XMLExtractor,
@@ -283,8 +286,18 @@ class Scraper:
             safe_emit(emit_heartbeat, name="scraper", instance_id=self.name, status="OK")
             safe_emit(emit_event, name="scraper",instance_id=self.name,event_type="scrape_started",severity="INFO",message="Scraping cycle started")
             
-            raw = self.fetcher.fetch(self.scraper_config["target_url"])
+            fetch_result = self.fetcher.fetch(self.scraper_config["target_url"])
+
+            raw = fetch_result["content"]
+            is_new = fetch_result["is_new"]
+            object_name = fetch_result["object_name"]
             safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="fetch_raw_duration_seconds", value=time.time() - loop_start)
+
+            if not is_new: # If minio content is duplicated, skip processing 
+                logger.info(f"[{self.name}] Duplicate raw skipped: {object_name}")
+                safe_emit(emit_event, name="scraper", instance_id=self.name, event_type="duplicate_raw_skipped",severity="INFO", message=f"Skipped duplicate raw object {object_name}")
+
+                return []
 
             extracted = self.extractor.extract(raw, self.scraper_config["root_tag"])
             mapped = self.mapper.map_records(extracted)
@@ -293,7 +306,8 @@ class Scraper:
             safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="scrape_duration_seconds", value=time.time() - loop_start)
             return mapped
         except Exception:
-            logger.error(f"[{self.name}] Error during scraping run_once")
+            tb = traceback.format_exc()
+            logger.error(f"[{self.name}] Error during scraping run_once", exc_info=True, extra={"traceback": tb})
             safe_emit(emit_event, name="scraper",instance_id=self.name,event_type="scrape_failed",severity="ERROR",message=f"Scraping failed")
             safe_emit(emit_heartbeat, name="scraper", instance_id=self.name, status="FAIL")
             return []
@@ -355,11 +369,61 @@ class HistoricScraper(Scraper):
         
         logger.info(f"Historic import completed. {inserted}")
 
+class MinIOReplayScraper(Scraper):
+    async def replay_from_minio(self, prefix: str = "", chunk_size: int = 500):
+        """
+        Reprocess all objects stored in MinIO and reinsert into DB.
+        """
+
+        logger.info(f"[{self.name}] Starting MinIO replay")
+
+        object_names = list_raw_objects(prefix)
+
+        logger.info(f"[{self.name}] Found {len(object_names)} raw objects")
+
+        for object_name in object_names:
+            raw = download_raw_data(object_name)
+
+            if not raw:
+                logger.warning(f"Skipping unreadable object {object_name}")
+                continue
+            try:
+                extracted = self.extractor.extract(
+                    raw,
+                    self.scraper_config["root_tag"]
+                )
+
+                mapped = self.mapper.map_records(extracted)
+
+                mapped = self.enricher.enrich_records(
+                    mapped,
+                    node_meta=self.state.get("node_meta")
+                )
+
+                records = self.hash_records(mapped)
+
+                unregistered = self.unregistered_records(records)
+
+                self.register(unregistered)
+
+                self._update_node_meta_cache(records)
+
+                for i in range(0, len(records), chunk_size):
+                    chunk = records[i : i + chunk_size]
+                    self.send_measurements(chunk)
+
+                logger.info(f"Reprocessed {object_name}")
+
+            except Exception as e:
+                logger.error(f"Replay failed for {object_name}: {e}")
+
+
 async def main():
     parser = argparse.ArgumentParser(description="Anomaly Detector CLI")
 
     parser.add_argument("--config", nargs="*", help="Specify which config(s) to use (none = all)")
     parser.add_argument("--historic", action="store_true", help="Run historic import")
+    parser.add_argument("--replay-minio", action="store_true", help="Replay raw files stored in MinIO")
 
     args = parser.parse_args()
     configs = load_configs(selected=args.config)
@@ -369,6 +433,15 @@ async def main():
         for scraper_conf, mapping_conf in configs:
             scraper = HistoricScraper(scraper_conf, mapping_conf)
             tasks.append(scraper.run_historic())
+
+        await asyncio.gather(*tasks)
+    
+    if args.replay_minio:
+        tasks = []
+
+        for scraper_conf, mapping_conf in configs:
+            scraper = MinIOReplayScraper(scraper_conf, mapping_conf)
+            tasks.append(scraper.replay_from_minio(prefix=scraper_conf.get("minio_prefix", "")))
 
         await asyncio.gather(*tasks)
 

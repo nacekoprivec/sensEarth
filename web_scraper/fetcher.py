@@ -7,8 +7,17 @@ class Fetcher:
         try:
             response = requests.get(url, timeout=10)
             response.raise_for_status()
-            store_raw_response(response) # Uncomment for storing raw responses
-            return response.content
+            object_name, is_new = store_raw_response(response) 
+
+            return {
+                "content": response.content,
+                "object_name": object_name,
+                "is_new": is_new
+            }
         except requests.RequestException as e:
             print(f"[Fetcher] Error fetching {url}: {e}")
-            return b""
+            return {
+                "content": b"",
+                "object_name": None,
+                "is_new": False
+            }

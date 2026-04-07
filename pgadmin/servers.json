@@ -3,7 +3,7 @@
         "1": {
             "Name": "Sensearth DB",
             "Group": "Databases",
-            "Host": "sensearth-db",
+            "Host": "core-db",
             "Port": 5432,
             "MaintenanceDB": "sensearth_db",
             "Username": "postgres",
@@ -13,7 +13,7 @@
         "2": {
             "Name": "Watchdog DB",
             "Group": "Databases",
-            "Host": "watchdog-db",
+            "Host": "monitoring-db",
             "Port": 5432,
             "MaintenanceDB": "monitoring_db",
             "Username": "postgres",

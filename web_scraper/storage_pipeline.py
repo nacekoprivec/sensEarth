@@ -25,7 +25,7 @@ def store_raw_response(response):
     # Skip upload if already exists
     if object_exists(object_name):
         print(f"[Storage] Duplicate skipped: {object_name}")
-        return object_name
+        return object_name, False
 
     # Upload to MinIO
     upload_raw_data(
@@ -37,4 +37,4 @@ def store_raw_response(response):
     )
 
     print(f"[Storage] Stored new object: {object_name}")
-    return object_name
+    return object_name, True
