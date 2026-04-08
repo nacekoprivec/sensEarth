@@ -423,7 +423,7 @@ async def main():
 
     parser.add_argument("--config", nargs="*", help="Specify which config(s) to use (none = all)")
     parser.add_argument("--historic", action="store_true", help="Run historic import")
-    parser.add_argument("--replay-minio", action="store_true", help="Replay raw files stored in MinIO")
+    parser.add_argument("--minio_reinsert", action="store_true", help="Replay raw files stored in MinIO")
 
     args = parser.parse_args()
     configs = load_configs(selected=args.config)
@@ -435,8 +435,9 @@ async def main():
             tasks.append(scraper.run_historic())
 
         await asyncio.gather(*tasks)
-    
-    if args.replay_minio:
+
+    elif args.minio_reinsert:
+        logger.info("Starting MinIO replay for all scrapers")
         tasks = []
 
         for scraper_conf, mapping_conf in configs:
@@ -444,9 +445,10 @@ async def main():
             tasks.append(scraper.replay_from_minio(prefix=scraper_conf.get("minio_prefix", "")))
 
         await asyncio.gather(*tasks)
-
-    scrapers = [Scraper(scraper_conf, mapping_conf) for scraper_conf, mapping_conf in configs]
-    await asyncio.gather(*(s.run() for s in scrapers))
+        
+    else:
+        scrapers = [Scraper(scraper_conf, mapping_conf) for scraper_conf, mapping_conf in configs]
+        await asyncio.gather(*(s.run() for s in scrapers))
 
 if __name__ == "__main__":
     asyncio.run(main())

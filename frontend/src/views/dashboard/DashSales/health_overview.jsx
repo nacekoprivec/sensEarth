@@ -94,7 +94,7 @@ export default function HealthOverview({ refreshKey }) {
           ) : errorEvents.length === 0 ? (
             <div className="text-muted small mt-1">No ERROR/CRITICAL events</div>
           ) : (
-            <div className="mt-2" style={{ overflow: "auto" }}>
+            <div className="events-scroll mt-2" >
               <Table striped bordered hover responsive size="sm" className="mb-0">
                 <thead>
                   <tr>

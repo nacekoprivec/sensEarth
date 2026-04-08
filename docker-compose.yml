@@ -91,7 +91,6 @@ services:
       - scraper_state:/app/state
     command: python scraper.py --config
 
-
   # pgAdmin
   pgadmin:
     container_name: sensearth-pgadmin

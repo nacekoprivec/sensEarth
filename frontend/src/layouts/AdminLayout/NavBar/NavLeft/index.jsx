@@ -76,7 +76,10 @@ export default function NavLeft() {
       <Link to="/typography" className="text-decoration-none nav-item-link">
         Models
       </Link>
-
+    {/* Map webpage */}
+      <Link to="/map-dashboard" className="text-decoration-none nav-item-link">
+        Map
+      </Link>
 </div>
   );
 }

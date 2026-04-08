@@ -55,7 +55,7 @@ def download_raw_data(object_name: str) -> bytes:
 
 def list_raw_objects(prefix: str = ""):
     """List objects inside the bucket."""
-    return [obj.object_name for obj in client.list_objects(MINIO_BUCKET, prefix=prefix)]
+    return [obj.object_name for obj in client.list_objects(MINIO_BUCKET, prefix=prefix, recursive=True)]
 
 def object_exists(object_name: str) -> bool:
     try:

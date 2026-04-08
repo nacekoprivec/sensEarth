@@ -16,6 +16,8 @@ const Register = lazy(() => import('../views/auth/register'));
 
 const Sample = lazy(() => import('../views/sample'));
 
+const MapDashboard = lazy(() => import('../views/MapDashboard/index.jsx'));
+
 const MainRoutes = {
   path: '/',
   children: [
@@ -47,6 +49,10 @@ const MainRoutes = {
         {
           path: '/sample-page',
           element: <Sample />
+        },
+        {
+          path: '/map-dashboard',
+          element: <MapDashboard />
         },
         {
           path: '*',
