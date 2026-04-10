@@ -41,6 +41,21 @@ class AnomalyDetectionModel(BaseModel):
 
         try:
             self.result = self.model_run.read_streaming_data(self.data)
+            count_anomalies = 0
+
+            for r in self.result:
+                is_anomaly = r[1][1]
+
+                if is_anomaly < 0: # Anomalies are -1, normal is 1
+                    count_anomalies += 1
+                
+            emit_metric(
+                name="anomaly_detection_model", 
+                instance_id=self.model_name,
+                metric_name=f"detected_anomalies:sensor_id={self.sensor_id}",
+                value=count_anomalies,
+                unit="count"
+            )
 
             emit_metric(
                 name="anomaly_detection_model",

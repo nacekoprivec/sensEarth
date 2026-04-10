@@ -81,6 +81,7 @@ services:
       - minio
     environment:
       API_URL: ${MIDDLEWARE_API}
+      MONITORING_API_URL: ${MONITORING_API}
     volumes:
       - scraper_state:/app/state
     command: python scraper.py --config

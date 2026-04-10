@@ -5,8 +5,6 @@ from typing import Optional
 from dotenv import load_dotenv
 import os
 
-
-
 WATCHDOG_URL = os.getenv("MONITORING_API")
 
 def _send(path, payload):

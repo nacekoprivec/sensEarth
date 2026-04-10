@@ -4,8 +4,7 @@ from typing import Optional
 
 import os
 
-
-WATCHDOG_URL = os.getenv("MONITORING_API")
+WATCHDOG_URL = os.getenv("MONITORING_API_URL")
 
 def _send(path, payload):
     try:

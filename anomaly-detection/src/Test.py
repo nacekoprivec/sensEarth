@@ -52,7 +52,7 @@ class Test(ConsumerAbstract):
 
         self.conf = conf
 
-        self.anomalies = []
+        self.model_inference = []
         
         if conf:
             self.configure(con=conf)
@@ -62,8 +62,6 @@ class Test(ConsumerAbstract):
             self.configure(con=conf)
         else:
             print("No configuration was given")
-
-
 
     def configure(self, con: Dict[Any, Any]) -> None:
         self.file_name = con.get("file_name", None)
@@ -77,13 +75,13 @@ class Test(ConsumerAbstract):
         assert len(self.anomaly_names) == len(self.anomaly_configurations),\
             "Number of algorithms and configurations do not match"
 
-        self.anomalies = []
+        self.model_inference = []
         for i, anomaly_name in enumerate(self.anomaly_names):
             anomaly = eval(anomaly_name)
             anomaly.configure(self.anomaly_configurations[i],
                               configuration_location=self.configuration_location,
                               algorithm_indx=i)
-            self.anomalies.append(anomaly)
+            self.model_inference.append(anomaly)
 
     def read(self) -> None:
         if(self.file_name[-4:] == "json"):
@@ -99,8 +97,8 @@ class Test(ConsumerAbstract):
             data = json.load(json_file)
             tab = data["data"]
         for d in tab:
-            for i, a in enumerate(self.anomalies):
-                self.anomalies[i].message_insert(d)
+            for i, a in enumerate(self.model_inference):
+                self.model_inference[i].message_insert(d)
 
     def read_csv(self):
         with open(self.file_path, 'r') as read_obj:
@@ -133,14 +131,14 @@ class Test(ConsumerAbstract):
                 d["ftr_vector"] = ftr_vector
                 message = d
 
-                for i, a in enumerate(self.anomalies):
+                for i, a in enumerate(self.model_inference):
                     if(self.filtering is not None and eval(self.filtering[i]) is not None):
                         #extract target time and tolerance
                         target_time, tolerance = eval(self.filtering[i])
                         message = self.filter_by_time(d, target_time, tolerance)
 
                     if message is not None:    
-                        self.data_buffer.append((row, self.anomalies[i].message_insert(d)))
+                        self.data_buffer.append((row, self.model_inference[i].message_insert(d)))
 
     def read_streaming_data(self, data):
         for measurement in data:
@@ -155,18 +153,17 @@ class Test(ConsumerAbstract):
 
             message = d
 
-            for i, a in enumerate(self.anomalies):
+            for i, a in enumerate(self.model_inference):
                 if self.filtering is not None and eval(self.filtering[i]) is not None:
                     target_time, tolerance = eval(self.filtering[i])
                     message = self.filter_by_time(message, target_time, tolerance)
 
                 if message is not None:
                     self.data_buffer.append(
-                        (row, self.anomalies[i].message_insert(d))
+                        (row, self.model_inference[i].message_insert(d))
                     )
 
         return self.data_buffer
-
 
     def classify_data(self) -> None:
         """Classifies the latest anomaly detection result."""
