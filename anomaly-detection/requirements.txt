@@ -14,3 +14,4 @@ sqlalchemy==1.4.22
 minio>=7.1.0
 psycopg2-binary
 rrcf==0.3.0
+python-dotenv

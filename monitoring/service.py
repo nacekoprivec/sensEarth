@@ -166,6 +166,22 @@ def get_events_db(db: Session):
         traceback.print_exc()
         return []
 
+def get_metrics_db(db: Session):
+    try:
+        rows = db.execute(text("""
+            SELECT m.*, c.name AS component_name, c.instance_id AS component_instance_id
+            FROM metrics m
+            JOIN components c ON m.component_id = c.component_id
+            ORDER BY m.timestamp DESC
+            LIMIT 100
+        """)).mappings().all()
+        logger.info(f"Fetched {len(rows)} metrics from database")
+        return rows
+    except Exception as e:
+        logger.error(f"Error fetching metrics: {e}")
+        traceback.print_exc()
+        return []
+
 def delete_component_db(name: str, instance_id: str, db: Session):
     try:
         db.execute(text("DELETE FROM components WHERE name = :name AND instance_id = :instance_id"), {"name": name, "instance_id": instance_id})

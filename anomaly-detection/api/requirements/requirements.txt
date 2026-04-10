@@ -3,3 +3,4 @@ uvicorn[standard]
 gunicorn
 python-multipart
 pydantic
+python-dotenv

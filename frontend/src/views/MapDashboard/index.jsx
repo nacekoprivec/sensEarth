@@ -5,9 +5,30 @@ import api from '../../api';
 
 const center = [14.0, 46.0]; // [lng, lat]
 
+async function fetchMeasurements(sensorIDs = [], days = 0) {
+  try {
+    const params = new URLSearchParams();
+    sensorIDs.forEach(id => params.append("sensorIDs", id));
+    if (days) params.append("days", days);
+
+    console.log("Fetching measurements with params for map:", { params: params.toString() });
+
+    const res = await api.get(`/measurements?${params.toString()}`);
+
+    const measurements = res.data; 
+    console.log("Fetched measurements:", measurements);
+
+    return measurements;
+  } catch (error) {
+    console.error("Failed to fetch measurements:", error);
+    return []; 
+  }
+}
+
 export default function MapDashboard() {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
+  const popupRef = useRef(null);
 
   const [sensors, setSensors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,23 +54,24 @@ export default function MapDashboard() {
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: {version: 8, 
+      style: {
+        version: 8,
         sources: {
-        osm: {
-          type: 'raster',
-          tiles: [
-            'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'
-          ],
-          tileSize: 256
-        }
-      },
-      layers: [
-        {
-          id: 'osm-tiles',
-          type: 'raster',
-          source: 'osm'
-        }
-      ]
+          osm: {
+            type: 'raster',
+            tiles: [
+              'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'
+            ],
+            tileSize: 256
+          }
+        },
+        layers: [
+          {
+            id: 'osm-tiles',
+            type: 'raster',
+            source: 'osm'
+          }
+        ]
       },
       center: center,
       zoom: 8
@@ -58,6 +80,7 @@ export default function MapDashboard() {
     mapRef.current = map;
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    popupRef.current = new maplibregl.Popup();
 
     map.on('load', () => {
       const geojson = {
@@ -88,7 +111,7 @@ export default function MapDashboard() {
         data: geojson
       });
 
-      // Markers
+      // Sensor points
       map.addLayer({
         id: 'sensor-points',
         type: 'circle',
@@ -108,24 +131,31 @@ export default function MapDashboard() {
         }
       });
 
-      // Click popup
+      // Click popup 
       map.on('click', 'sensor-points', (e) => {
         const feature = e.features[0];
         const coords = feature.geometry.coordinates.slice();
 
         const { label, status, type, id } = feature.properties;
 
-        new maplibregl.Popup()
+        popupRef.current
           .setLngLat(coords)
           .setHTML(`
-            <div>
+            <div style="font-size: 13px;">
               <strong>${label}</strong><br/>
-              Type: ${type}<br/>
-              Status: ${status}<br/>
-              ID: ${id}
+              <div>Type: ${type}</div>
+              <div>Status: ${status}</div>
+              <div>ID: ${id}</div>
             </div>
           `)
           .addTo(map);
+      });
+
+      // Close popup when clicking elsewhere
+      map.on('click', () => {
+        if (popupRef.current) {
+          popupRef.current.remove();
+        }
       });
 
       // Cursor pointer
@@ -138,7 +168,9 @@ export default function MapDashboard() {
       });
     });
 
-    return () => map.remove();
+    return () => {
+      map.remove();
+    };
   }, [loading, sensors]);
 
   if (loading) {
@@ -159,7 +191,7 @@ export default function MapDashboard() {
 
       <div
         ref={mapContainer}
-        style={{ width: '100%', height: '400px', borderRadius: '8px' }}
+        style={{ width: '100%', height: '700px', borderRadius: '8px' }}
       />
     </Card>
   );

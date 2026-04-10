@@ -1,18 +1,52 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Card, Spinner, Table } from "react-bootstrap";
+import { Card, Spinner } from "react-bootstrap";
 import api from "../../../api";
 import monitoring_api from "../../../monitoring_api";
 
 function ModelRun({ completed, ongoing }) {
+  const total = completed + ongoing;
+  const successRate = total > 0 ? (completed / total) * 100 : null;
+
   return (
-    <div className="mt-1">
-      <div className="fw-bold text-primary" style={{ fontSize: "2rem" }}>
-        {completed} / {completed + ongoing}
+    <div>
+      <div style={{fontSize: "1.2rem", fontWeight: 600, fontVariantNumeric: "tabular-nums",}}>
+        {completed} / {total}
       </div>
-      <div className="text-muted small">
-        Completed / total runs{" "}
-        <span className="ms-2">Ongoing: {ongoing}</span>
+
+      <div className="text-muted" style={{ fontSize: "0.7rem" }}>
+        Completed · Ongoing: {ongoing}
       </div>
+
+      {successRate != null && (
+        <div
+          style={{
+            fontSize: "0.7rem",
+            color: successRate > 90 ? "#15803d" : "#b45309",
+          }}
+        >
+          {successRate.toFixed(0)}% success
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MiniCard({ title, children }) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        minWidth: "120px",
+        padding: "8px 10px",
+        border: "1px solid #e9ecef",
+        borderRadius: "10px",
+        background: "#fff",
+      }}
+    >
+      <div className="fw-semibold text-muted" style={{ fontSize: "0.7rem" }}>
+        {title}
+      </div>
+      <div className="mt-1">{children}</div>
     </div>
   );
 }
@@ -26,173 +60,138 @@ export default function ModelsOverview({ refreshKey }) {
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(true);
 
-  const fetchModels = async () => {
-    try {
-      const res = await api.get("/models");
-      setModels(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
-      console.error("Failed to fetch models:", e);
-      setModels([]);
-    }
-    setLoadingModels(false);
-  };
-
-  const fetchModelRuns = async () => {
-    try {
-      const res = await api.get("/modelRuns");
-      setModelRuns(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
-      console.error("Failed to fetch model runs:", e);
-      setModelRuns([]);
-    }
-    setLoadingRuns(false);
-  };
-
-  const fetchEvents = async () => {
-    try {
-      const res = await monitoring_api.get("/events");
-      setEvents(Array.isArray(res.data) ? res.data : []);
-    } catch (e) {
-      console.error("Failed to fetch monitoring events:", e);
-      setEvents([]);
-    }
-    setLoadingEvents(false);
-  };
-
   useEffect(() => {
     setLoadingModels(true);
     setLoadingRuns(true);
     setLoadingEvents(true);
-    fetchModels();
-    fetchModelRuns();
-    fetchEvents();
+
+    api.get("/models")
+      .then(res => setModels(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setModels([]))
+      .finally(() => setLoadingModels(false));
+
+    api.get("/modelRuns")
+      .then(res => setModelRuns(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setModelRuns([]))
+      .finally(() => setLoadingRuns(false));
+
+    monitoring_api.get("/events")
+      .then(res => setEvents(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setEvents([]))
+      .finally(() => setLoadingEvents(false));
+
   }, [refreshKey]);
 
   const { completedRuns, ongoingRuns } = useMemo(() => {
     const completed = modelRuns.filter(
-      (r) =>
-        r.status === "completed" ||
-        (r.finished_at != null && String(r.finished_at).length > 0)
+      r => r.status === "completed" || r.finished_at
     ).length;
-    const ongoing = Math.max(0, modelRuns.length - completed);
-    return { completedRuns: completed, ongoingRuns: ongoing };
-  }, [modelRuns]);
 
-  const configCount = models.length;
+    return {
+      completedRuns: completed,
+      ongoingRuns: Math.max(0, modelRuns.length - completed),
+    };
+  }, [modelRuns]);
 
   const modelIssues = useMemo(() => {
     const errEvents = events.filter(
-      (e) => e.severity === "ERROR" || e.severity === "CRITICAL"
+      e => e.severity === "ERROR" || e.severity === "CRITICAL" || e.severity === "WARNING"
     );
 
     const counts = new Map();
-    for (const m of models) {
-      counts.set(m.name, 0);
-    }
+    models.forEach(m => counts.set(m.name, 0));
 
-    for (const e of errEvents) {
-      const metaModelName =
-        e?.metadata && typeof e.metadata === "object" ? e.metadata.model_name : null;
-      if (metaModelName && counts.has(metaModelName)) {
-        counts.set(metaModelName, (counts.get(metaModelName) || 0) + 1);
-        continue;
+    errEvents.forEach(e => {
+      const name = e?.metadata?.model_name;
+      if (name && counts.has(name)) {
+        counts.set(name, counts.get(name) + 1);
       }
-
-      const msg = typeof e?.message === "string" ? e.message : "";
-      for (const name of counts.keys()) {
-        if (name && msg.includes(name)) {
-          counts.set(name, (counts.get(name) || 0) + 1);
-        }
-      }
-    }
+    });
 
     return Array.from(counts.entries())
       .map(([modelName, issues]) => ({ modelName, issues }))
       .sort((a, b) => b.issues - a.issues);
   }, [events, models]);
 
-  const anyIssues = modelIssues.some((x) => x.issues > 0);
+  const anyIssues = modelIssues.some(x => x.issues > 0);
 
   return (
     <Card className="flat-card">
       <Card.Body>
-        <div className="border-bottom d-flex justify-content-between align-items-center mb-2">
-          <h3 className="mb-0" style={{ fontSize: "1.1rem" }}>
+        <div className="border-bottom mb-2">
+          <h3 style={{ fontSize: "1rem", fontWeight: 600 }}>
             Model runs
           </h3>
         </div>
 
-        <div className="d-flex flex-wrap gap-3">
+        <div className="d-flex flex-wrap gap-2">
 
-          {/* Model Runs */}
-          <div className="flex-fill" style={{ minWidth: "120px" }}>
-            <div className="fw-semibold small">Runs</div>
+          {/* Runs */}
+          <MiniCard title="Runs">
             {loadingRuns ? (
-              <div className="text-muted small mt-1">
-                <Spinner animation="border" size="sm" className="me-2" />
-                Loading…
-              </div>
+              <Spinner size="sm" />
             ) : (
-              <ModelRun completed={completedRuns} ongoing={ongoingRuns} />
+              <ModelRun
+                completed={completedRuns}
+                ongoing={ongoingRuns}
+              />
             )}
-          </div>
+          </MiniCard>
 
-          {/* Configs */}
-          <div className="flex-fill" style={{ minWidth: "100px" }}>
-            <div className="fw-semibold small">Models</div>
+          {/* Models */}
+          <MiniCard title="Models">
             {loadingModels ? (
-              <div className="text-muted small mt-1">
-                <Spinner animation="border" size="sm" className="me-2" />
-                Loading…
-              </div>
+              <Spinner size="sm" />
             ) : (
-              <div className="mt-1">
-                <div className="fw-bold" style={{ fontSize: "1.4rem" }}>
-                  {configCount}
-                </div>
-                <div className="text-muted small">Total number of models</div>
+              <div
+                style={{
+                  fontSize: "1.2rem",
+                  fontWeight: 600,
+                  color: "#1d4ed8",
+                }}
+              >
+                {models.length}
               </div>
             )}
-          </div>
+          </MiniCard>
 
           {/* Issues */}
-          <div className="flex-fill" style={{ minWidth: "160px" }}>
-            <div className="fw-semibold small">
-              Issues{" "}
-              {!loadingEvents && (
-                <span className="text-muted">
-                  ({modelIssues.filter((x) => x.issues > 0).length})
-                </span>
-              )}
-            </div>
-
+          <MiniCard title="Issues">
             {loadingEvents || loadingModels ? (
-              <div className="text-muted small mt-1">
-                <Spinner animation="border" size="sm" className="me-2" />
-                Loading…
-              </div>
+              <Spinner size="sm" />
             ) : !anyIssues ? (
-              <div className="text-muted small mt-1">None</div>
+              <div className="text-muted" style={{ fontSize: "0.75rem" }}>
+                None
+              </div>
             ) : (
-              <div className="mt-1" style={{ maxHeight: "120px", overflow: "auto" }}>
-                <Table striped bordered hover responsive size="sm" className="mb-0">
-                  <tbody>
-                    {modelIssues
-                      .filter((x) => x.issues > 0)
-                      .slice(0, 3)
-                      .map((x) => (
-                        <tr key={x.modelName}>
-                          <td className="small">{x.modelName}</td>
-                          <td>
-                            <span className="badge bg-danger">{x.issues}</span>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </Table>
+              <div style={{ fontSize: "0.75rem" }}>
+                {modelIssues
+                  .filter(x => x.issues > 0)
+                  .slice(0, 3)
+                  .map(x => (
+                    <div
+                      key={x.modelName}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span style={{ maxWidth: "100px" }}>
+                        {x.modelName}
+                      </span>
+                      <span
+                        style={{
+                          color: "#b91c1c",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {x.issues}
+                      </span>
+                    </div>
+                  ))}
               </div>
             )}
-          </div>
+          </MiniCard>
 
         </div>
       </Card.Body>

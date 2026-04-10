@@ -38,6 +38,23 @@ services:
     restart: always
 
 
+  # Middleware API Service
+  middleware-api:
+    container_name: sensearth-middleware-api
+    build:
+      context: ./anomaly-detection
+      dockerfile: Dockerfile
+    working_dir: /app
+    ports:
+      - "5006:5006"
+    depends_on:
+      - core-db
+      - monitoring-api
+    environment:
+      CORE_DB_URL: ${CORE_DB_URL}
+      MONITORING_API_URL: ${MONITORING_API}
+    restart: always
+
   # Monitoring API Service
   monitoring-api:
     container_name: sensearth-monitoring-api
@@ -48,33 +65,10 @@ services:
     ports:
       - "8001:8001"
     depends_on:
-      - monitoring-db  
-    restart: always
-
-
-  # Middleware API
-  middleware-api:
-    container_name: sensearth-middleware-api
-    build:
-      context: ./anomaly-detection
-      dockerfile: Dockerfile
-    working_dir: /app
-    ports:
-      - "5006:5006"
-    depends_on:
-      - core-db        
-      - monitoring-api  
+      - monitoring-db
     environment:
-      DB_HOST: core-db  
-      DB_PORT: 5432
-      DB_NAME: sensearth_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-
-      MONITORING_API_HOST: monitoring-api  
-      MONITORING_API_PORT: 8001
+      MONITORING_DB_URL: ${MONITORING_DB_URL}
     restart: always
-
 
   # Scraper
   scraper:
@@ -83,13 +77,14 @@ services:
       context: ./web_scraper
       dockerfile: Dockerfile
     depends_on:
-      - middleware-api 
-      - minio        
+      - middleware-api
+      - minio
     environment:
-      API_URL: http://middleware-api:5006   
+      API_URL: ${MIDDLEWARE_API}
     volumes:
       - scraper_state:/app/state
     command: python scraper.py --config
+
 
   # pgAdmin
   pgadmin:
@@ -133,6 +128,9 @@ services:
       - "5005:80"
     depends_on:
       - middleware-api
+    environment:
+      VITE_MIDDLEWARE_API_URL: ${VITE_MIDDLEWARE_API_URL}
+      VITE_MONITORING_API_URL: ${VITE_MONITORING_API_URL}
     restart: always
 
 

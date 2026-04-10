@@ -1,6 +1,34 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, Spinner, Table } from "react-bootstrap";
+import { PieChart, Pie, Cell } from "recharts";
+
 import monitoring_api from "../../../monitoring_api";
+
+function PieCircle({ percent }) {
+  const data = [
+    { name: "filled", value: percent },
+    { name: "remaining", value: 100 - percent },
+  ];
+
+  const COLORS = ["#7267ef", "#e9ecef"];
+
+  return (
+    <PieChart width={50} height={50}>
+      <Pie
+        data={data}
+        innerRadius={18}
+        outerRadius={25}
+        startAngle={90}
+        endAngle={-270}
+        dataKey="value"
+      >
+        {data.map((_, index) => (
+          <Cell key={index} fill={COLORS[index]} />
+        ))}
+      </Pie>
+    </PieChart>
+  );
+}
 
 export default function HealthOverview({ refreshKey }) {
   const [components, setComponents] = useState([]);
@@ -44,85 +72,97 @@ export default function HealthOverview({ refreshKey }) {
     return { healthPercent: pct, activeCount: active, totalCount: total };
   }, [components]);
 
-  const errorEvents = useMemo(() => {
-    return events
-      .filter((e) => e.severity === "ERROR" || e.severity === "CRITICAL")
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  const severityCounts = useMemo(() => {
+    return events.reduce(
+      (acc, e) => {
+        acc[e.severity] = (acc[e.severity] || 0) + 1;
+        return acc;
+      },
+      { CRITICAL: 0, ERROR: 0, WARNING: 0 }
+    );
   }, [events]);
 
   return (
     <Card className="flat-card">
       <Card.Body>
-        <div className="border-bottom d-flex justify-content-between align-items-center mb-2">
+        <div className="border-bottom d-flex align-items-center mb-2">
           <h3 className="mb-0" style={{ fontSize: "1.1rem" }}>
             Health overview
           </h3>
         </div>
 
+        {/* System health */}
         <div className="mt-2">
-          <div className="fw-semibold">System health</div>
+
           {loadingComponents ? (
             <div className="text-muted small mt-1">
               <Spinner animation="border" size="sm" className="me-2" />
               Loading…
             </div>
           ) : (
-            <div className="mt-1">
-              <div className="fw-bold text-primary" style={{ fontSize: "2rem" }}>
-                {healthPercent}%
-              </div>
-              <div className="text-muted small">
-                {activeCount} / {totalCount} components active
-              </div>
-            </div>
-          )}
-        </div>
+            <div className="mt-1 border rounded-3 p-2 shadow-sm d-flex align-items-center justify-content-between">
+              {/* LEFT: Health */}
+              <div className="d-flex align-items-center gap-4">
 
-        <div className="mt-3">
-          <div className="fw-semibold" style={{ fontSize: "0.9rem" }}>
-            Error events{" "}
-            {!loadingEvents ? (
-              <span className="text-muted">({errorEvents.length})</span>
-            ) : null}
-          </div>
+                {/* Text block */}
+                <div className="d-flex flex-column justify-content-center text-center">
+                  <div className="fw-bold text-primary" style={{ fontSize: "2.2rem", lineHeight: 1 }}>
+                    {healthPercent}%
+                  </div>
+                  <div className="text-muted small mt-1">
+                    {activeCount} / {totalCount} components active
+                  </div>
+                </div>
 
-          {loadingEvents ? (
-            <div className="text-muted small mt-1">
-              <Spinner animation="border" size="sm" className="me-2" />
-              Loading…
-            </div>
-          ) : errorEvents.length === 0 ? (
-            <div className="text-muted small mt-1">No ERROR/CRITICAL events</div>
-          ) : (
-            <div className="events-scroll mt-2" >
-              <Table striped bordered hover responsive size="sm" className="mb-0">
-                <thead>
-                  <tr>
-                    <th>Severity</th>
-                    <th>Component</th>
-                    <th>Message</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {errorEvents.slice(0, 5).map((e) => (
-                    <tr key={e.event_id}>
-                      <td>
-                        <span
-                          className={`badge ${
-                            e.severity === "CRITICAL" ? "bg-dark" : "bg-danger"
-                          }`}
-                        >
-                          {e.severity}
-                        </span>
-                      </td>
-                      <td>
-                        {e.component_name} ({e.component_instance_id})
-                      </td>
-                      <td>{e.message}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+                {/* Chart block */}
+                <div className="d-flex align-items-center justify-content-center">
+                  <div style={{ width: 60, height: 60 }}>
+                    <PieCircle percent={healthPercent} />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* RIGHT: Severity box */}
+              {!loadingEvents && (
+                <div
+                  className="border rounded-3 p-2 shadow-sm"
+                  style={{ minWidth: "180px", background: "#fff" }}
+                >
+                  {/* CRITICAL */}
+                  <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom">
+                    <div className="bg-dark text-white px-2 py-1 fw-semibold rounded small text-center"
+                      style={{ minWidth: "90px" }}>
+                      CRITICAL
+                    </div>
+                    <div className="fw-bold fs-6">
+                      {severityCounts.CRITICAL}
+                    </div>
+                  </div>
+
+                  {/* ERROR */}
+                  <div className="d-flex justify-content-between align-items-center px-2 py-2 border-bottom">
+                    <div className="bg-danger text-white px-2 py-1 fw-semibold rounded small text-center"
+                      style={{ minWidth: "90px" }}>
+                      ERROR
+                    </div>
+                    <div className="fw-bold fs-6">
+                      {severityCounts.ERROR}
+                    </div>
+                  </div>
+
+                  {/* WARNING */}
+                  <div className="d-flex justify-content-between align-items-center px-2 py-2">
+                    <div className="bg-warning text-dark px-2 py-1 fw-semibold rounded small text-center"
+                      style={{ minWidth: "90px" }}>
+                      WARNING
+                    </div>
+                    <div className="fw-bold fs-6">
+                      {severityCounts.WARNING}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

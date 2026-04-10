@@ -2,8 +2,9 @@ from psycopg2.extras import Json
 import requests, threading
 from typing import Optional
 
+import os
 
-WATCHDOG_URL = "http://monitoring-api:8001"
+WATCHDOG_URL = os.getenv("MONITORING_API")
 
 def _send(path, payload):
     try:

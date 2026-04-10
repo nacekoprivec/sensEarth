@@ -56,6 +56,10 @@ def get_components(db: Session = Depends(get_db)):
 def get_events(db: Session = Depends(get_db)):
     return get_events_db(db)
 
+@app.get("/metrics")
+def get_metrics(db: Session = Depends(get_db)):
+    return get_metrics_db(db)
+
 @app.delete("/component")
 def delete_component(name: str, instance_id: str, db: Session = Depends(get_db)):
     return delete_component_db(name, instance_id, db)
