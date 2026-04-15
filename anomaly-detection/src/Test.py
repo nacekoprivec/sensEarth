@@ -26,7 +26,7 @@ from algorithms.clustering import Clustering
 from algorithms.percentile import Percentile
 
 from algorithms.rrcf_trees import RRCF_trees
-#from algorithms.fb_prophet import fb_prophet
+from algorithms.fb_prophet import fb_Prophet
 
 
 from json import loads

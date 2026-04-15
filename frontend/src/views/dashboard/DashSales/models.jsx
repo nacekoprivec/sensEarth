@@ -50,7 +50,8 @@ export default function ModelsDashboard({ setModelsUpdated }) {
           timestamp: measurement[0],
           value: measurement[1],
           message: result[0],
-          code: result[1]
+          code: result[1],
+          suggestedValue: result.length > 2 ? result[2] : undefined
         }))
       };
     });
@@ -60,6 +61,7 @@ export default function ModelsDashboard({ setModelsUpdated }) {
     try {
       const res = await api.get("/models");
       setModels(res.data);
+      console.log("Fetched models:", res.data);
     } catch (error) {
       console.error("Failed to fetch models:", error);
       setModels([]);
@@ -279,22 +281,14 @@ export default function ModelsDashboard({ setModelsUpdated }) {
                                   <span className="dashboard-cell">
                                     {row.timestamp.toFixed(2)}
                                   </span>
+
                                   <span className="dashboard-cell">
                                     {row.value}
                                   </span>
-                                  {row.message === "OK" ? (
-                                    <span className="dashboard-cell dashboard-success">
-                                      {row.message}
-                                    </span>
-                                  ) : row.message.includes("Warning") ? (
-                                    <span className="dashboard-cell dashboard-warning">
-                                      {row.message}
-                                    </span>
-                                  ) : (
-                                    <span className="dashboard-cell dashboard-error">
-                                      {row.message}
-                                    </span>
-                                  )}
+
+                                  <span className={`dashboard-cell ${row.suggestedValue !== undefined ? 'dashboard-suggested' : row.message === 'OK' ? 'dashboard-success' : row.message.includes('Warning') ? 'dashboard-warning' : 'dashboard-error'}`}>
+                                    {row.suggestedValue !== undefined ? `Suggested: ${row.suggestedValue}` : row.message}
+                                  </span>
                                 </div>
                               ))}
                             </div>

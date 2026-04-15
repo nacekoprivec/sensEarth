@@ -27,8 +27,7 @@ from algorithms.percentile import Percentile
 
 from algorithms.rrcf_trees import RRCF_trees
 
-# TODO: imports
-# from algorithms.fb_prophet import fb_Prophet
+from algorithms.fb_prophet import fb_Prophet
 
 
 from kafka import KafkaConsumer, TopicPartition

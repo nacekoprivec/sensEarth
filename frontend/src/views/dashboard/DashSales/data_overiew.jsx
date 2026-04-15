@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card, Spinner, Row, Col } from "react-bootstrap";
 import monitoring_api from "../../../monitoring_api";
-
+import api from '../../../api';
 
 function StatCard({ label, value, subtext, variant = "default" }) {
   const colors = {
@@ -82,10 +82,25 @@ function StatCard({ label, value, subtext, variant = "default" }) {
 export default function DataOverview({ refreshKey }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({});
+  
+  const fetchSensorsAll = async () => {
+    try {
+      const res = await api.get("/sensors");
+      console.log("Fetched all sensors for data overview:", res.data);
+      const activeSensors = res.data.length;
+
+      setData((d) => ({ ...d, activeSensors }));
+
+    } catch (error) {
+      console.error("Failed to fetch sensors for data overview:", error);
+    }
+  };
+
 
   const fetchStructuredStorage = async () => {
     try {
       const res = await monitoring_api.get("/events");
+      console.log("Fetched events for data overview:", res.data);
       const list = Array.isArray(res.data) ? res.data : [];
 
       const metricsRes = await monitoring_api.get("/metrics");
@@ -126,7 +141,7 @@ export default function DataOverview({ refreshKey }) {
 
         // Extract duplicates count from metrics
         const dupMetrics = metrics.filter(m => m.metric_name === "duplicates_skipped");
-        const duplicatesPercent = dupMetrics.reduce((sum, m) => sum + m.value, 0) || null;
+        const numDuplicates = dupMetrics.reduce((sum, m) => sum + m.value, 0) || null;
 
         // Extract invalid measurements % from metrics
         const invalidMetric = metrics.find(m => m.metric_name === "measurements_skipped_rate");
@@ -146,8 +161,6 @@ export default function DataOverview({ refreshKey }) {
         }
 
         // Extract active sensors count
-        const activeSensorsMatch = latest.message.match(/(\d+)\s+active\s+sensors/i);
-        const activeSensors = activeSensorsMatch ? Number(activeSensorsMatch[1]) : null;
 
         const firstTs = middlewareEvents[0]?.timestamp
           ? new Date(middlewareEvents[0].timestamp)
@@ -165,11 +178,10 @@ export default function DataOverview({ refreshKey }) {
           total,
           latestCount,
           ratePerDay,
-          duplicatesPercent,
+          numDuplicates,
           invalidPercent,
           failedCount,
           successRate,
-          activeSensors,
           lastTimestamp: latest.timestamp,
         });
       }
@@ -177,12 +189,25 @@ export default function DataOverview({ refreshKey }) {
       console.error(e);
       setData({});
     }
-    setLoading(false);
   };
 
-  useEffect(() => {
-    setLoading(true);
-    fetchStructuredStorage();
+    useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+
+      try {
+        await Promise.all([
+          fetchSensorsAll(),
+          fetchStructuredStorage()
+        ]);
+      } catch (e) {
+        console.error(e);
+      }
+
+      setLoading(false);
+    };
+
+    load();
   }, [refreshKey]);
 
   return (
@@ -204,9 +229,9 @@ export default function DataOverview({ refreshKey }) {
                 <StatCard
                   label="Duplicates"
                   value={
-                    data.duplicatesPercent == null
+                    data.numDuplicates == null
                       ? "—"
-                      : `${data.duplicatesPercent}`
+                      : `${data.numDuplicates}`
                   }
                 />
               </Col>

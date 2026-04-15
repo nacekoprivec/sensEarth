@@ -181,7 +181,7 @@ class fb_Prophet(AnomalyDetectionAbstract):
                 self.samples_since_retrain = 0
                 self.train_model()
 
-        return status, status_code
+        return status, status_code, boundries[1]  
 
     def train_model(self):
         # Check if enough samples in memory
@@ -195,7 +195,7 @@ class fb_Prophet(AnomalyDetectionAbstract):
         if not pd.api.types.is_datetime64_any_dtype(self.memory_dataframe["ds"]):
             self.memory_dataframe["ds"] = pd.to_datetime(self.memory_dataframe["ds"])
 
-        # Initialize new model
+        # Initialize new model, you can add monthly, weekly or yearly_seasonality=True
         self.model = Prophet()
 
         # Fit the model
@@ -216,3 +216,26 @@ class fb_Prophet(AnomalyDetectionAbstract):
         self.memory_dataframe.to_csv(self.history_file, index=False)
 
         print('Training successful', flush = True)
+
+    def get_future_prediction(self, steps: int = None):
+        if self.model is None:
+            raise ValueError("Model is not trained yet")
+
+        # use configured horizon if not provided
+        if steps is None:
+            steps = self.forecast_horizons[0]
+
+        # generate future timestamps
+        future = self.model.make_future_dataframe(
+            periods=steps,
+            freq=self.forecast_horizons[1]
+        )
+
+        forecast = self.model.predict(future)
+
+        # keep only future part
+        last_time = self.memory_dataframe["ds"].max()
+        future_forecast = forecast[forecast["ds"] > last_time]
+
+        # return clean structure
+        return future_forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].to_dict(orient="records")

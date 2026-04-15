@@ -24,6 +24,7 @@ COPY ./api ./api
 COPY ./src ./src
 COPY main.py .
 COPY ./monitoring ./monitoring
+COPY ./data ./data
 # Set Python path so local modules are visible
 ENV PYTHONPATH=/app:/app/src
 

@@ -5,7 +5,6 @@ from psycopg2.extras import Json
 import traceback
 from utils import *
 
-
 component_id_cache: dict[tuple[str, str], int] = {}
 
 def get_component_id(name: str, instance_id: str, db: Session) -> int | None:

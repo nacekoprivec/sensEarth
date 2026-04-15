@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import { Card, Typography, Box, CircularProgress } from '@mui/material';
-import api from '../../api';
-import monitoring_api from '../../monitoring_api';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
+import api from '../../../api';
+import monitoring_api from "../../../monitoring_api";
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 const center = [14.0, 46.0]; // [lng, lat]
@@ -165,7 +167,7 @@ export default function MapDashboard() {
       });
 
       // Click popup 
-          map.on('click', 'sensor-points', async (e) => {
+      map.on('click', 'sensor-points', async (e) => {
         const feature = e.features[0];
         const coords = feature.geometry.coordinates.slice();
 
@@ -219,41 +221,66 @@ export default function MapDashboard() {
   }
 
   return (
-    <>
-    <div className="intro-section">
-        
-        <div className="intro-content">
-          <h1>SensEarth</h1>
-          <p>A digital twin of sensor data sources</p>
-        </div>
-      </div>
-    <Card sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
-        Sensor Locations
-      </Typography>
+  <div style={{ position: "relative" }}>
+    {/* MAP */}
+    <div
+      ref={mapContainer}
+      style={{
+        width: '100vw',
+        height: '350px',
+        backgroundSize: 'cover',
+        borderRadius: '8px',
 
+        position: 'relative',
+        left: '50%',
+        transform: 'translateX(-50%)',
+
+        marginBottom: '20px',
+        marginTop: '-15px'
+      }}
+    />
+
+    {selectedSensor && (
       <div
-        ref={mapContainer}
-        style={{ width: '100%', height: '500px', borderRadius: '8px' }}
-      />
-      {selectedSensor && (
-      <Box mt={2}>
-        <Typography variant="subtitle1" gutterBottom>
-          Measurements — {selectedSensor.label}
-        </Typography>
+        style={{
+          position: "absolute",
+          top: 20,
+          left: 20,
+          width: "320px",
+          maxHeight: "300px",
+          background: "rgba(255,255,255,0.95)",
+          borderRadius: "8px",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+          padding: "12px",
+          zIndex: 10,
+          overflow: "hidden",
+        }}
+      > 
+          <Typography variant="subtitle1" gutterBottom sx={{pr: 4  }}>
+            Measurements — {selectedSensor.label}
+          </Typography>
+          <IconButton size="small" onClick={() => setSelectedSensor(null)} 
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 6
+          }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
 
         {loadingMeasurements ? (
           <CircularProgress size={20} />
         ) : (
           <div
             style={{
-              maxHeight: "250px",
+              maxHeight: "120px",
               overflowY: "auto",
               border: "1px solid #eee",
               borderRadius: "6px",
             }}
           >
-            <table style={{ width: "100%", fontSize: "0.8rem" }}>
+            <table style={{ width: "100%", fontSize: "0.75rem" }}>
               <thead style={{ position: "sticky", top: 0, background: "#fafafa" }}>
                 <tr>
                   <th style={{ textAlign: "left", padding: "6px" }}>Timestamp</th>
@@ -276,7 +303,7 @@ export default function MapDashboard() {
           </div>
         )}
 
-        <Box mt={2}>
+        <Box mt={1}>
           <Typography variant="subtitle2" gutterBottom>
             Sensor metrics
           </Typography>
@@ -290,14 +317,13 @@ export default function MapDashboard() {
           ) : (
             <div
               style={{
-                maxHeight: "250px",
+                maxHeight: "120px",
                 overflowY: "auto",
                 border: "1px solid #eee",
                 borderRadius: "6px",
-                marginTop: 8,
               }}
             >
-              <table style={{ width: "100%", fontSize: "0.8rem" }}>
+              <table style={{ width: "100%", fontSize: "0.75rem" }}>
                 <thead style={{ position: "sticky", top: 0, background: "#fafafa" }}>
                   <tr>
                     <th style={{ textAlign: "left", padding: "6px" }}>Metric</th>
@@ -318,10 +344,7 @@ export default function MapDashboard() {
             </div>
           )}
         </Box>
-      </Box>
+      </div>
     )}
-    </Card>
-     </>
-  );
- 
-}
+  </div>
+);}

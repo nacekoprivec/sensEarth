@@ -231,7 +231,7 @@ class Scraper:
 
                 return response.json()
             except Exception as e:  
-                logger.error(f"Error sending measurements: {e}")
+                logger.error(f"Error sending measurements: {traceback.format_exc()}")
                 safe_emit(emit_event, name="scraper",instance_id=self.name,event_type="data_ingest_failure",severity="ERROR",message=f"Failed to send measurements: {e}")
         return {}
     

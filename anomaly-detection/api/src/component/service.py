@@ -15,6 +15,7 @@ from psycopg2.extras import Json
 
 from ..database import get_db
 from ..modeling_services.anomaly_detection_model import AnomalyDetectionModel
+from ..modeling_services.forecast_model import ForecastModel
 
 from .models import *
 from .schemas import *
@@ -28,6 +29,7 @@ from sqlalchemy.exc import IntegrityError
 
 MODEL_REGISTRY = {
     "anomaly_detection_model": AnomalyDetectionModel,
+    "forecast_model": ForecastModel,  
 }
 
 CONFIG_DIR = os.path.abspath("configuration")
@@ -531,7 +533,12 @@ async def model_results(payload: Dict, MODEL_REGISTRY: Dict[str, Any], db: Sessi
 
             timestamp_float = entry[0][0]
             value = entry[0][1]
-            inference_message = entry[1][0]
+
+            if model_type == "anomaly_detection_model": # Writes the anomaly detection message
+                inference_message = entry[1][0]
+
+            elif model_type == "forecast_model": # Writes forecast prediction
+                inference_message = entry[1][2]
 
             timestamp_utc = unix_epoch + timedelta(days=timestamp_float)
 

@@ -1,5 +1,6 @@
 {
     "anomaly_detection_alg": ["EMA()"],
+    "file_name": "data/ads-1.csv",
     "anomaly_detection_conf": [
         {
             "input_vector_size": 1,
