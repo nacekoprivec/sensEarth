@@ -69,11 +69,11 @@ export default function NavLeft() {
     </ListGroup>
     
     {/* Dashboard webpage */}
-      <Link to="/dashboard/sales" className="text-decoration-none nav-item-link">
+      <Link to="/dashboard" className="text-decoration-none nav-item-link">
         Dashboard
       </Link>
     {/* Models webpage */}
-      <Link to="/typography" className="text-decoration-none nav-item-link">
+      <Link to="/model-logs" className="text-decoration-none nav-item-link">
         Models
       </Link>
     {/* Map webpage */}

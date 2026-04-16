@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, Spinner } from "react-bootstrap";
-import api from "../../../api";
-import monitoring_api from "../../../monitoring_api";
+import api from "../../api";
+import monitoring_api from "../../monitoring_api";
 
 function ModelRun({ completed, ongoing }) {
   const total = completed + ongoing;

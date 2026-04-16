@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import api from "../../../../api";
+import api from "../../../api";
 import SensorChartModels from "./SensorChart_models";
 
 function formatRunLabel(run) {

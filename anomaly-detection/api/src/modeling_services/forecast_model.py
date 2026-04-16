@@ -12,7 +12,7 @@ class ForecastModel(BaseModel):
         self.data = []
         self.data = [
         {
-            "timestamp": round(float(m.timestamp_utc.timestamp()) / 86400.0, 4), # Convert to days since epoch
+            "timestamp": float(m.timestamp_utc.timestamp()),
             "ftr_vector": [float(m.value)],
         }
         for m in measurements

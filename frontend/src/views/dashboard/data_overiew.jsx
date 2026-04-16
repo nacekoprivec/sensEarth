@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Card, Spinner, Row, Col } from "react-bootstrap";
-import monitoring_api from "../../../monitoring_api";
-import api from '../../../api';
+import monitoring_api from "../../monitoring_api";
+import api from '../../api';
 
 function StatCard({ label, value, subtext, variant = "default" }) {
   const colors = {

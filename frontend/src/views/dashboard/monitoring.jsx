@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Row, Col, Card, Table, Spinner } from "react-bootstrap";
-import monitoring_api from "../../../monitoring_api"; 
+import monitoring_api from "../../monitoring_api"; 
 
 export default function MonitoringDashboard( {modelsUpdated} ) {
   const [components, setComponents] = useState([]);

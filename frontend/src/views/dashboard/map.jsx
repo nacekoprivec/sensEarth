@@ -3,8 +3,8 @@ import maplibregl from 'maplibre-gl';
 import { Card, Typography, Box, CircularProgress } from '@mui/material';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
-import api from '../../../api';
-import monitoring_api from "../../../monitoring_api";
+import api from '../../api';
+import monitoring_api from "../../monitoring_api";
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 const center = [14.0, 46.0]; // [lng, lat]

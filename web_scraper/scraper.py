@@ -22,10 +22,8 @@ from monitoring.client import emit_component_registration, emit_event, emit_metr
 
 from raw_data.raw_storage import download_raw_data, list_raw_objects
 
-from dotenv import load_dotenv
 import os
 
-load_dotenv()
 
 EXTRACTOR_MAP = {
     "xml": XMLExtractor,
@@ -301,7 +299,8 @@ class Scraper:
             if not is_new: # If minio content is duplicated, skip processing 
                 logger.info(f"[{self.name}] Duplicate raw skipped: {object_name}")
                 safe_emit(emit_event, name="scraper", instance_id=self.name, event_type="duplicate_raw_skipped",severity="INFO", message=f"Skipped duplicate raw object {object_name}")
-                safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="duplicates_skipped", value=1)
+                safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="
+                ", value=1)
                 return []
 
             extracted = self.extractor.extract(raw, self.scraper_config["root_tag"])

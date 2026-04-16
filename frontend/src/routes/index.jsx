@@ -6,7 +6,7 @@ import MainRoutes from './MainRoutes';
 import AdminLayout from 'layouts/AdminLayout';
 
 // render - landing page
-const DashboardSales = lazy(() => import('../views/dashboard/DashSales/index.jsx'));
+const DashboardSales = lazy(() => import('../views/dashboard/index.jsx'));
 
 // ==============================|| ROUTING RENDER ||============================== //
 

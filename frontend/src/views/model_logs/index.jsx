@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, Spinner, Table } from "react-bootstrap";
-import api from "../../../api";
+import api from "../../api";
 
 // -----------------------|| MODEL LOGS ||-----------------------//
-export default function BasicTypography() {
+export default function ModelLogs() {
   const [models, setModels] = useState([]);
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,6 +12,7 @@ export default function BasicTypography() {
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [runLogs, setRunLogs] = useState([]);
   const [logsError, setLogsError] = useState(null);
+  const [selectedModel, setSelectedModel] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -130,15 +131,12 @@ export default function BasicTypography() {
   }, [runLogs]);
 
   return (
-    <div
-      className="d-flex justify-content-center align-items-center"
-      style={{ minHeight: "calc(100vh - 120px)" }}
-    >
+    <div className="d-flex gap-3" style={{ height: "calc(120vh - 120px)", overflow: "hidden" }}>
       <Card
         className="flat-card"
         style={{ width: "100%", maxWidth: "960px" }}
       >
-        <Card.Body>
+        <Card.Body style={{ overflowY: "auto", height: "100%" }}>
           <div className="border-bottom d-flex justify-content-between align-items-center mb-3">
             <h3 className="mb-0" style={{ fontSize: "1.1rem" }}>
               Model logs
@@ -175,7 +173,10 @@ export default function BasicTypography() {
                     <React.Fragment key={model.model_id}>
                       <tr
                         className="cursor-pointer"
-                        onClick={() => toggleModelExpanded(model.model_id)}
+                        onClick={() => {
+                          toggleModelExpanded(model.model_id);
+                          setSelectedModel(model);
+                        }}
                       >
                         <td>
                           <div className="fw-semibold text-truncate">
@@ -345,6 +346,46 @@ export default function BasicTypography() {
           </div>
         </Card.Body>
       </Card>
+      <div style={{ flex: 1 }}>
+  <Card className="flat-card">
+    <Card.Body>
+      <h5 className="mb-3">Model parameters</h5>
+
+      {!selectedModel ? (
+        <div className="text-muted small">
+          Click a model to view its parameters.
+        </div>
+      ) : (
+        <>
+          <div className="mb-2 fw-semibold">
+            {selectedModel.name}
+          </div>
+
+          <div className="small text-muted mb-2">
+            Type: {selectedModel.model_type || "N/A"}
+          </div>
+
+          <hr />
+
+          {selectedModel.parameters ? (
+            <pre
+              style={{
+                fontSize: "0.75rem",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {JSON.stringify(selectedModel.parameters, null, 2)}
+            </pre>
+          ) : (
+            <div className="text-muted small">
+              No parameters found.
+            </div>
+          )}
+        </>
+      )}
+    </Card.Body>
+  </Card>
+</div>
     </div>
   );
 }

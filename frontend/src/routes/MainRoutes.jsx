@@ -3,9 +3,9 @@ import { lazy } from 'react';
 import AdminLayout from 'layouts/AdminLayout';
 import GuestLayout from 'layouts/GuestLayout';
 
-const DashboardSales = lazy(() => import('../views/dashboard/DashSales/index.jsx'));
+const Dashboard = lazy(() => import('../views/dashboard/index.jsx'));
 
-const Typography = lazy(() => import('../views/ui-elements/basic/BasicTypography'));
+const ModelLogs = lazy(() => import('../views/model_logs/index.jsx'));
 
 const FeatherIcon = lazy(() => import('../views/ui-elements/icons/Feather'));
 const FontAwesome = lazy(() => import('../views/ui-elements/icons/FontAwesome'));
@@ -26,12 +26,12 @@ const MainRoutes = {
       element: <AdminLayout />,
       children: [
         {
-          path: '/dashboard/sales',
-          element: <DashboardSales />
+          path: '/dashboard',
+          element: <Dashboard />
         },
         {
-          path: '/typography',
-          element: <Typography />
+          path: '/model-logs',
+          element: <ModelLogs />
         },
         {
           path: '/icons/Feather',

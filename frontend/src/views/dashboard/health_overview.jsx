@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Card, Spinner, Table } from "react-bootstrap";
 import { PieChart, Pie, Cell } from "recharts";
 
-import monitoring_api from "../../../monitoring_api";
+import monitoring_api from "../../monitoring_api";
 
 function PieCircle({ percent }) {
   const data = [

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Row, Col, Card, Table, Spinner, Accordion } from "react-bootstrap";
-import monitoring_api from "../../../monitoring_api";
+import monitoring_api from "../../monitoring_api";
 
 export default function EventsDashboard() {
   const [events, setEvents] = useState([]);

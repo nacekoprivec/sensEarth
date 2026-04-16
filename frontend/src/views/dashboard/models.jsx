@@ -11,8 +11,8 @@ import DialogContentText from '@mui/material/DialogContentText';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import api from '../../../api';
-import monitoring_api from "../../../monitoring_api";
+import api from '../../api';
+import monitoring_api from "../../monitoring_api";
 
 export default function ModelsDashboard({ setModelsUpdated }) {
 

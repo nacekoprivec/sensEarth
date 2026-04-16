@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Card, Spinner, Badge } from "react-bootstrap";
-import monitoring_api from "../../../monitoring_api";
+import monitoring_api from "../../monitoring_api";
 
 export default function IngestionStatus({ modelsUpdated }) {
   const [activeScraperCount, setActiveScraperCount] = useState(0);

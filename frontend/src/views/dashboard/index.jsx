@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Table, Spinner } from "react-bootstrap";
-import api from '../../../api';
+import api from '../../api';
 import MonitoringDashboard from './monitoring';
 import ModelsDashboard from './models';
 import EventsDashboard from './events';
@@ -35,7 +35,7 @@ async function fetchMeasurements(sensorIDs = [], days = 0) {
   }
 }
 
-export default function DashboardSales() {
+export default function Dashboard() {
   const [sensors, setSensors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allSensors, setAllSensors] = useState([]); // [{id, label}]

@@ -540,7 +540,7 @@ async def model_results(payload: Dict, MODEL_REGISTRY: Dict[str, Any], db: Sessi
             elif model_type == "forecast_model": # Writes forecast prediction
                 inference_message = entry[1][2]
 
-            timestamp_utc = unix_epoch + timedelta(days=timestamp_float)
+            timestamp_utc = unix_epoch + timedelta(seconds=timestamp_float)
 
             rows.append({
                 "run_id": model_run_id,
@@ -581,7 +581,7 @@ def get_models(db: Session):
     db_healthcheck(db)
 
     rows = db.execute(
-        text("SELECT model_id, name, description, model_type FROM model")
+        text("SELECT model_id, name, description, model_type, parameters FROM model")
     ).mappings().fetchall()
 
     if not rows:
