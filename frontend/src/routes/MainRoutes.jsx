@@ -2,6 +2,7 @@ import { lazy } from 'react';
 
 import AdminLayout from 'layouts/AdminLayout';
 import GuestLayout from 'layouts/GuestLayout';
+import UserDashboard from '../views/user_dashboard/index.jsx';
 
 const Dashboard = lazy(() => import('../views/dashboard/index.jsx'));
 
@@ -16,7 +17,6 @@ const Register = lazy(() => import('../views/auth/register'));
 
 const Sample = lazy(() => import('../views/sample'));
 
-const MapDashboard = lazy(() => import('../views/MapDashboard/index.jsx'));
 
 const MainRoutes = {
   path: '/',
@@ -34,25 +34,8 @@ const MainRoutes = {
           element: <ModelLogs />
         },
         {
-          path: '/icons/Feather',
-          element: <FeatherIcon />
-        },
-        {
-          path: '/icons/font-awesome-5',
-          element: <FontAwesome />
-        },
-        {
-          path: '/icons/material',
-          element: <MaterialIcon />
-        },
-
-        {
-          path: '/sample-page',
-          element: <Sample />
-        },
-        {
-          path: '/map-dashboard',
-          element: <MapDashboard />
+          path: '/user-dashboard',
+          element: <UserDashboard />
         },
         {
           path: '*',

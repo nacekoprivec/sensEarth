@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Row, Col, Card, Table, Spinner } from "react-bootstrap";
 import api from "../../../api";
 import SensorChartModels from "./SensorChart_models";
+
 
 function formatRunLabel(run) {
   const started = run.started_at ? new Date(run.started_at).toLocaleString() : "unknown start";
@@ -91,33 +93,37 @@ export default function ModelChartSettings({ allSensors }) {
 
   return (
     <>
-      <div className="border-bottom d-flex justify-content-between align-items-center mb-3">
-        <h3>Model run overview</h3>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <label className="settings-label" style={{ marginBottom: 0 }}>
-            Run
-          </label>
-          <select
-            className="form-select"
-            style={{ width: 420 }}
-            value={selectedRunId}
-            onChange={e => setSelectedRunId(e.target.value)}
-            disabled={runsLoading || !runs.length}
-          >
-            {runs.map(r => (
-              <option key={r.run_id} value={String(r.run_id)}>
-                {formatRunLabel(r)}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <Card className="flat-card">
+        <Card.Body>
+          <div className="border-bottom d-flex justify-content-between align-items-center mb-3">
+            <h3>Model run overview</h3>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <label className="settings-label" style={{ marginBottom: 0 }}>
+                Run
+              </label>
+              <select
+                className="form-select"
+                style={{ width: 420 }}
+                value={selectedRunId}
+                onChange={e => setSelectedRunId(e.target.value)}
+                disabled={runsLoading || !runs.length}
+              >
+                {runs.map(r => (
+                  <option key={r.run_id} value={String(r.run_id)}>
+                    {formatRunLabel(r)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-      {runsError && <div className="text-danger mb-2">{runsError}</div>}
-      {logsError && <div className="text-danger mb-2">{logsError}</div>}
-      {(runsLoading || logsLoading) && <div className="text-muted mb-2">Loading…</div>}
+          {runsError && <div className="text-danger mb-2">{runsError}</div>}
+          {logsError && <div className="text-danger mb-2">{logsError}</div>}
+          {(runsLoading || logsLoading) && <div className="text-muted mb-2">Loading…</div>}
 
-      <SensorChartModels measurements={measurements} />
+          <SensorChartModels measurements={measurements} />
+        </Card.Body>
+      </Card>
     </>
   );
 }

@@ -76,9 +76,9 @@ export default function NavLeft() {
       <Link to="/model-logs" className="text-decoration-none nav-item-link">
         Models
       </Link>
-    {/* Map webpage */}
-      <Link to="/map-dashboard" className="text-decoration-none nav-item-link">
-        Map
+    {/* User dashboard webpage */}
+      <Link to="/user-dashboard" className="text-decoration-none nav-item-link">
+        UserDashboard
       </Link>
 </div>
   );

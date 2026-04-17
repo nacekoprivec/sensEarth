@@ -1,17 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Table, Spinner } from "react-bootstrap";
 import api from '../../api';
-import MonitoringDashboard from './monitoring';
-import ModelsDashboard from '../model_logs/models';
-import EventsDashboard from './events';
-import SensorChart from "../user_dashboard/sensor_chart/SensorChart";
-import ChartSettingsModal from "../user_dashboard/sensor_chart/ChartSettingsModal";
+import SensorChart from "./sensor_chart/SensorChart";
+import ChartSettingsModal from "./sensor_chart/ChartSettingsModal";
 import LatestMeasurementsDashboard from './latest_measurements';
-import IngestionStatus from './ingestion_status';
-import DataOverview from './data_overiew';
-import HealthOverview from './health_overview';
-import ModelRuns from './models_overview';
 import MapDashboard from './map';
+import ModelChartSettings from './model_chart/ModelChartSettings';
 //-----------------------|| DASHBOARD SENSEARTH ||-----------------------//
 
 async function fetchMeasurements(sensorIDs = [], days = 0) {
@@ -34,7 +28,7 @@ async function fetchMeasurements(sensorIDs = [], days = 0) {
   }
 }
 
-export default function Dashboard() {
+export default function UserDashboard() {
   const [sensors, setSensors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allSensors, setAllSensors] = useState([]); // [{id, label}]
@@ -93,18 +87,37 @@ export default function Dashboard() {
     fetchSensors();
   }, []);
 
+  const addSensorToChart = (sensorId) => {
+    const id = Number(sensorId);
+    if (!Number.isFinite(id)) return;
+    setSelectedSensors((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  };
+
   return (
     <>
-      <MapDashboard />
-      <div className="system-overview">
-        <IngestionStatus modelsUpdated={modelsUpdated} />
-        <DataOverview refreshKey={modelsUpdated} />
-        <HealthOverview refreshKey={modelsUpdated} />
-        <ModelRuns refreshKey={modelsUpdated} />
-      </div>
-      <div className="dashboard-grid">      
-        <MonitoringDashboard modelsUpdated={modelsUpdated} />
-        <EventsDashboard />
+      <MapDashboard
+        selectedSensors={selectedSensors}
+        onAddSensorToChart={addSensorToChart}
+      />
+      <div className="dashboard-grid">
+        <Card className="flat-card" style={{ gridColumn: "span 1" }}>
+          <Card.Body>
+            <ChartSettingsModal
+              allSensors={allSensors}
+              selectedSensors={selectedSensors}
+              setSelectedSensors={setSelectedSensors}
+              days={days}
+              setDays={setDays}
+              onClose={() => setShowSettings(false)}
+              resetChart={resetChart}
+            />
+            <SensorChart key={chartReset} measurements={measurements} />
+          </Card.Body>
+        </Card>
+        
+        <ModelChartSettings allSensors={allSensors} />
+        <LatestMeasurementsDashboard sensors={sensors} loading={loading} />
+
       </div>
     </>
   );
