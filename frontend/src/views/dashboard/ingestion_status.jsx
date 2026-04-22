@@ -137,26 +137,20 @@ export default function IngestionStatus({ modelsUpdated }) {
               </div>
             </div>
 
-            <div className="d-flex justify-content-between align-items-center border-top pt-2">
-              
-              {/* Warning indicator */}
-              <div className="d-flex gap-3 align-items-center mt-2">
+            <div className="scraper-overview-footer">
+              <div className="scraper-overview-footer__item">
                 <span className="small text-muted">Warnings</span>
                 <Badge bg={warningCount > 0 ? "warning" : "secondary"}>
                   {warningCount}
                 </Badge>
               </div>
-
-              {/* Error indicator */}
-              <div className="d-flex gap-3 align-items-center mt-2">
+              <div className="scraper-overview-footer__item">
                 <span className="small text-muted">Errors</span>
                 <Badge bg={totalErrors > 0 ? "danger" : "secondary"}>
                   {totalErrors}
                 </Badge>
               </div>
-
-              {/* Critical indicator */}
-              <div className="d-flex gap-3 align-items-center mt-2">
+              <div className="scraper-overview-footer__item">
                 <span className="small text-muted">Critical</span>
                 <Badge bg={criticalCount > 0 ? "dark" : "secondary"}>
                   {criticalCount}

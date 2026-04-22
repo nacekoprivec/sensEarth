@@ -93,10 +93,10 @@ export default function ModelChartSettings({ allSensors }) {
 
   return (
     <>
-      <Card className="flat-card">
+      <Card className="flat-card dashboard-component">
         <Card.Body>
           <div className="border-bottom d-flex justify-content-between align-items-center mb-3">
-            <h3>Model run overview</h3>
+            <h3 className="mb-0">Model run overview</h3>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <label className="settings-label" style={{ marginBottom: 0 }}>
                 Run

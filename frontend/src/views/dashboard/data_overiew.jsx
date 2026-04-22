@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Card, Spinner, Row, Col } from "react-bootstrap";
+import { Card, Spinner } from "react-bootstrap";
 import monitoring_api from "../../monitoring_api";
 import api from '../../api';
 
@@ -36,44 +36,20 @@ function StatCard({ label, value, subtext, variant = "default" }) {
 
   return (
     <div
+      className="data-overview-stat"
       style={{
         background: c.bg,
         border: `1px solid ${c.border}`,
-        borderRadius: "10px",
-        padding: "8px 10px",
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        gap: "2px",
       }}
     >
-      <div
-        className="text-muted"
-        style={{ fontSize: "0.7rem", lineHeight: 1 }}
-      >
-        {label}
-      </div>
+      <div className="data-overview-stat__label">{label}</div>
 
-      <div
-        style={{
-          fontSize: "1rem",
-          fontWeight: 600,
-          color: c.value,
-          fontVariantNumeric: "tabular-nums",
-          lineHeight: 1.2,
-        }}
-      >
+      <div className="data-overview-stat__value" style={{ color: c.value }}>
         {value}
       </div>
 
       {subtext && (
-        <div
-          className="text-muted"
-          style={{ fontSize: "0.65rem", lineHeight: 1 }}
-        >
-          {subtext}
-        </div>
+        <div className="data-overview-stat__sub">{subtext}</div>
       )}
     </div>
   );
@@ -214,7 +190,7 @@ export default function DataOverview({ refreshKey }) {
     <Card className="flat-card">
       <Card.Body>
         <div className="border-bottom d-flex align-items-center mb-2">
-          <h3 style={{ fontSize: "1.1rem" }}>Data overview</h3>
+          <h3 className="mb-0" style={{ fontSize: "1.1rem" }}>Data overview</h3>
         </div>
 
         {loading ? (
@@ -224,8 +200,7 @@ export default function DataOverview({ refreshKey }) {
           </div>
         ) : (
           <>
-            <Row className="g-3">
-              <Col md={6} lg={3}>
+            <div className="data-overview-stats">
                 <StatCard
                   label="Duplicates"
                   value={
@@ -234,9 +209,7 @@ export default function DataOverview({ refreshKey }) {
                       : `${data.numDuplicates}`
                   }
                 />
-              </Col>
 
-              <Col md={6} lg={3}>
                 <StatCard
                   label="Invalid measurements"
                   value={
@@ -247,9 +220,7 @@ export default function DataOverview({ refreshKey }) {
                       })}%`
                   }
                 />
-              </Col>
 
-              <Col md={6} lg={3}>
                 <StatCard
                   label="Failed ingestions"
                   value={
@@ -258,9 +229,7 @@ export default function DataOverview({ refreshKey }) {
                       : `${data.failedCount}`
                   }
                 />
-              </Col>
 
-              <Col md={6} lg={3}>
                 <StatCard
                   label="Active sensors"
                   value={
@@ -269,8 +238,6 @@ export default function DataOverview({ refreshKey }) {
                       : `${data.activeSensors}`
                   }
                 />
-              </Col>
-              <Col md={6} lg={3}>
                 <StatCard
                   label="Total ingested"
                   value={
@@ -279,9 +246,7 @@ export default function DataOverview({ refreshKey }) {
                       : `${data.total.toLocaleString()} records`
                   }
                 />
-              </Col>
 
-              <Col md={6} lg={3}>
                 <StatCard
                   label="Last batch"
                   value={
@@ -290,9 +255,7 @@ export default function DataOverview({ refreshKey }) {
                       : `${data.latestCount} records`
                   }
                 />
-              </Col>
 
-              <Col md={6} lg={3}>
                 <StatCard
                   label="Ingestion rate"
                   value={
@@ -303,8 +266,6 @@ export default function DataOverview({ refreshKey }) {
                       })}/d`
                   }
                 />
-              </Col>
-              <Col md={6} lg={3}>
                 <StatCard
                   label="Success rate"
                   value={
@@ -315,8 +276,7 @@ export default function DataOverview({ refreshKey }) {
                       })}%`
                   }
                 />
-              </Col>
-            </Row>
+            </div>
 
             <div className="mt-3 text-muted" style={{ fontSize: "0.8rem" }}>
               {data.lastTimestamp

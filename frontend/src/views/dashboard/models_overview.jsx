@@ -33,20 +33,13 @@ function ModelRun({ completed, ongoing }) {
 
 function MiniCard({ title, children }) {
   return (
-    <div
-      style={{
-        flex: 1,
-        minWidth: "120px",
-        padding: "8px 10px",
-        border: "1px solid #e9ecef",
-        borderRadius: "10px",
-        background: "#fff",
-      }}
-    >
+    <div className="model-runs-mini">
       <div className="fw-semibold text-muted" style={{ fontSize: "0.7rem" }}>
         {title}
       </div>
-      <div className="mt-1">{children}</div>
+      <div className="mt-1 flex-grow-1 d-flex flex-column justify-content-center">
+        {children}
+      </div>
     </div>
   );
 }
@@ -119,12 +112,12 @@ export default function ModelsOverview({ refreshKey }) {
     <Card className="flat-card">
       <Card.Body>
         <div className="border-bottom mb-2">
-          <h3 style={{ fontSize: "1rem", fontWeight: 600 }}>
+          <h3 className="mb-0" style={{ fontSize: "1rem", fontWeight: 600 }}>
             Model runs
           </h3>
         </div>
 
-        <div className="d-flex flex-wrap gap-2">
+        <div className="model-runs-grid">
 
           {/* Runs */}
           <MiniCard title="Runs">

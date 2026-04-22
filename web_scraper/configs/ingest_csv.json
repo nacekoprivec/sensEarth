@@ -4,7 +4,6 @@
     "description": "Historic data for water level data from ARSO Mura 1060",
     "target_url": "https://vode.arso.gov.si/hidarhiv/pov_arhiv_tab.php?p_vodotok=Mura&p_postaja=1060",
     "fetch_interval": 3600,
-    "selector": "None",
     "format": "csv",
     "root_tag": ";"
   },

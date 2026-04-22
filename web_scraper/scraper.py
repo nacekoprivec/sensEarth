@@ -22,9 +22,6 @@ from monitoring.client import emit_component_registration, emit_event, emit_metr
 
 from raw_data.raw_storage import download_raw_data, list_raw_objects
 
-import os
-
-
 EXTRACTOR_MAP = {
     "xml": XMLExtractor,
     "json": JSONExtractor,
@@ -54,7 +51,7 @@ class Scraper:
 
         self.format = scraper_config.get("format")
         if self.format not in EXTRACTOR_MAP:
-            raise ValueError("Unsupported format: {self.format}")
+            raise ValueError(f"Unsupported format: {self.format}")
         else:
             self.extractor = EXTRACTOR_MAP[self.format]()
 
@@ -102,9 +99,8 @@ class Scraper:
         Registers nodes and sensors from the payload using the /register endpoint.
         Returns pairs of "nodes": { node_hash : node_id}, "sensors": { sensor_hash : sensor_id}}
         """
-        # Get payload infor and find kota_0 in altitude"
-        normalize_altitude(payload)
-                
+        normalize(payload)
+
         if not payload.get("nodes") and not payload.get("sensors"):
             logger.info(f"Nothing to register")
             return {} 
@@ -159,7 +155,7 @@ class Scraper:
             lat = node.get("latitude")
             alt = node.get("altitude")
 
-            # Only store if we have at least one coordinate value.
+            # Only store if at least one coordinate value.
             if lon is None and lat is None and alt is None:
                 continue
 
@@ -224,8 +220,11 @@ class Scraper:
                 )
 
                 safe_emit(emit_event, name="scraper",instance_id=self.name,event_type="data_ingest_success",severity="INFO",message=f"Sent measurements successfully")
-                safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="measurements_sent_rate", value=(len(measurements) / (len(measurements) + skipped)))
-                safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="measurements_skipped_rate", value=(skipped / len(measurements) * 100))
+                if len(measurements) > 0:
+                   skipped_rate = (skipped / len(measurements)) * 100
+                else:
+                   skipped_rate = 0
+                safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="measurements_skipped_rate", value=skipped_rate)
 
                 return response.json()
             except Exception as e:  
@@ -256,14 +255,14 @@ class Scraper:
                         "sensor_type": st_name,
                         "longitude": sensor.get("longitude"),
                         "latitude": sensor.get("latitude"),
-                        "altitude": sensor.get("altitude") # Fix if sensor.get("altitude") is not None 
+                        "altitude": sensor.get("altitude")
                     })
         return records
 
     def unregistered_records(self, records: List[Dict]) -> List[Dict]:
         """
         Identifies records with unregistered nodes/sensors.
-        Returns a payload suitable for /register endpoint.
+        Returns only dictionaries for nodes/sensors that are not yet registered according to the state.
         """
         to_register = {"nodes": [], "sensors": []}
         for record in records:
@@ -333,11 +332,12 @@ class Scraper:
 
             except Exception as e:
                 logger.error(f"[{self.name}] Error during scraping: {e}")
+                safe_emit(emit_heartbeat, name="scraper", instance_id=self.name, status="FAIL")
+
 
             if self.fetch_interval <= 0:
                 break
             await asyncio.sleep(self.fetch_interval)
-        safe_emit(emit_heartbeat, name="scraper", instance_id=self.name, status="FAIL")
 
 class HistoricScraper(Scraper):
     async def run_historic(self, file_path: str = "ingest/data.csv"):

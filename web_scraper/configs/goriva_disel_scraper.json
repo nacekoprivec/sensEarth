@@ -1,0 +1,42 @@
+{
+  "scraper_config": {
+    "name": "GorivaSI_Diesel_Scraper",
+    "description": "Scraper for diesel fuel prices from goriva.si API",
+    "target_url": "https://goriva.si/api/v1/search/?format=json&position=Ljubljana",
+    "fetch_interval": 1800,
+    "format": "json",
+    "root_tag": "results"
+  },
+  "mapping_config": {
+    "node": {
+      "node_label": "Fuel_Station",
+      "node_serial": "pk",
+      "longitude": "lng",
+      "latitude": "lat",
+      "altitude": "0.0"
+    },
+    "sensors": [
+      {
+        "sensor_label": "name",
+        "sensor_name": "Diesel Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "Diesel fuel price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.dizel",
+          "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "diesel_price",
+          "phenomenon": "Diesel Fuel Price",
+          "unit": "EUR/L",
+          "value_min": 0,
+          "value_max": 5
+        }
+      }
+    ]
+  }
+}

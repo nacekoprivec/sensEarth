@@ -152,9 +152,10 @@ export default function Models() {
   return (
     <>
       <div className="dashboard-grid">
-        <ModelLogs refreshKey={modelsUpdated} />
         <ModelChartSettings allSensors={allSensors} />
         <ModelsDashboard setModelsUpdated={setModelsUpdated} />
+        <ModelLogs refreshKey={modelsUpdated} />
+
       </div>
     </>
   );

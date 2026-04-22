@@ -113,11 +113,9 @@ export default function ModelsDashboard({ setModelsUpdated }) {
   return (
     <>
       <Card className="flat-card dashboard-component">
-        <Card.Body>
-          <Card>
-            <Card.Body>
-              <div className="border-bottom d-flex justify-content-between align-items-center mb-3" >
-                <h3>Models</h3>
+        <Card.Body className="d-flex flex-column gap-3">
+              <div className="border-bottom d-flex justify-content-between align-items-center mb-0 pb-3">
+                <h3 className="mb-0">Models</h3>
                 <div className="d-flex align-items-center">
                   <IconButton
                     className='btn-icon-small'
@@ -254,12 +252,10 @@ export default function ModelsDashboard({ setModelsUpdated }) {
                   </tbody>
                 </Table>
               )}
-            </Card.Body>
-          </Card>
 
-          <Card className="flat-card scroll-area">
-            <Card.Body>
-              <h5>Model results</h5>
+          <Card className="flat-card scroll-area mb-0">
+            <Card.Body className="py-2">
+              <h5 className="mb-2">Model results</h5>
 
               {modelResults && (
                 <Card className="mt-3">

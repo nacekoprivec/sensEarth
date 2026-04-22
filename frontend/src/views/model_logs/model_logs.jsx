@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Row, Col, Card, Table, Spinner } from "react-bootstrap";
+import { Card, Table, Spinner } from "react-bootstrap";
 import api from "../../api";
-import ModelChartSettings from "./model_chart/ModelChartSettings";
-import ModelsDashboard from "./models";
 
 // -----------------------|| MODEL LOGS ||-----------------------//
 
@@ -149,17 +147,11 @@ export default function ModelLogs( { refreshKey } ) {
   }, [runLogs]);
 
   return (
-    <>
-      <div className="d-flex gap-3" style={{ height: "calc(120vh - 120px)", overflow: "hidden" }}>
-        <Card
-          className="flat-card"
-          style={{ width: "100%", maxWidth: "960px" }}
-        >
-          <Card.Body style={{ overflowY: "auto", height: "100%" }}>
+    <div className="model-logs-layout d-flex gap-3 h-100">
+        <Card className="flat-card dashboard-component">
+          <Card.Body className="overflow-auto">
             <div className="border-bottom d-flex justify-content-between align-items-center mb-3">
-              <h3 className="mb-0" style={{ fontSize: "1.1rem" }}>
-                Model logs
-              </h3>
+              <h3 className="mb-0">Model logs</h3>
             </div>
 
             {loading ? (
@@ -285,8 +277,8 @@ export default function ModelLogs( { refreshKey } ) {
             )}
 
             <hr className="my-4" />
-            <div>
-              <h5 className="mb-2">Selected run</h5>
+            <div className="mt-2">
+              <h5 className="mb-2 border-bottom pb-2">Selected run</h5>
               {!selectedRun ? (
                 <div className="text-muted small">
                   Click on a run to see its details.
@@ -364,10 +356,9 @@ export default function ModelLogs( { refreshKey } ) {
             </div>
           </Card.Body>
         </Card>
-        <div style={{ flex: 1 }}>
-          <Card className="flat-card">
-            <Card.Body>
-              <h5 className="mb-3">Model parameters</h5>
+        <Card className="flat-card dashboard-component">
+            <Card.Body className="overflow-auto d-flex flex-column">
+              <h5 className="mb-3 border-bottom pb-2">Model parameters</h5>
 
               {!selectedModel ? (
                 <div className="text-muted small">
@@ -381,14 +372,9 @@ export default function ModelLogs( { refreshKey } ) {
                   <div className="small text-muted mb-2">
                     Type: {selectedModel.model_type || "N/A"}
                   </div>
-                  <hr />
+                  <hr className="my-2" />
                   {selectedModel.parameters ? (
-                    <pre
-                      style={{
-                        fontSize: "0.75rem",
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
+                    <pre className="model-logs-params-pre mb-0 flex-grow-1">
                       {JSON.stringify(selectedModel.parameters, null, 2)}
                     </pre>
                   ) : (
@@ -399,9 +385,7 @@ export default function ModelLogs( { refreshKey } ) {
                 </>
               )}
             </Card.Body>
-          </Card>
-        </div>
-      </div>
-    </>
+        </Card>
+    </div>
   );
 }

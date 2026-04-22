@@ -8,6 +8,19 @@ class Mapper:
     def __init__(self, mapping_config: dict):
         self.mapping_config = mapping_config
 
+    def _get_by_path(self, record, path: str):
+        """
+        Returns None if any segment is missing or traversal is impossible.
+        """
+        if not isinstance(record, dict):
+            return None
+        cur = record
+        for part in path.split("."):
+            if not isinstance(cur, dict) or part not in cur:
+                return None
+            cur = cur.get(part)
+        return cur
+
     def _map_value(self, config_val, record):
         # If nested mapping (dict), recurse
         if isinstance(config_val, dict):
@@ -18,8 +31,13 @@ class Mapper:
             return [self._map_value(v, record) for v in config_val]
 
         # If config_val refers to a record key
-        if isinstance(config_val, str) and config_val in record:
-            return record.get(config_val)
+        if isinstance(config_val, str):
+            if config_val in record:
+                return record.get(config_val)
+            if "." in config_val:
+                nested = self._get_by_path(record, config_val)
+                if nested is not None:
+                    return nested
 
         # Constant / fallback value
         return config_val
