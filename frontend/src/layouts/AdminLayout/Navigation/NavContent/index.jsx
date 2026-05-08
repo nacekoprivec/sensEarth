@@ -15,7 +15,7 @@ import SimpleBar from 'simplebar-react';
 // assets
 import logo from 'assets/images/logo.svg';
 
-// -----------------------|| NAV CONTENT ||-----------------------//
+//-----------------------|| NAV CONTENT ||-----------------------//
 
 export default function NavContent({ navigation, activeNav }) {
   const configContext = useContext(ConfigContext);

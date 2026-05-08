@@ -69,15 +69,15 @@ export default function NavLeft() {
     </ListGroup>
     
     {/* Dashboard webpage */}
-      <Link to="/dashboard" className="text-decoration-none nav-item-link">
+      <Link to="/dashboard" className="leftnav-header text-decoration-none nav-item-link">
         Dashboard
       </Link>
     {/* Models webpage */}
-      <Link to="/model-logs" className="text-decoration-none nav-item-link">
+      <Link to="/model-logs" className="leftnav-header text-decoration-none nav-item-link " >
         Models
       </Link>
     {/* User dashboard webpage */}
-      <Link to="/user-dashboard" className="text-decoration-none nav-item-link">
+      <Link to="/user-dashboard" className="leftnav-header text-decoration-none nav-item-link">
         UserDashboard
       </Link>
 </div>
