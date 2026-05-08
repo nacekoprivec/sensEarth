@@ -1,0 +1,231 @@
+{
+  "scraper_config": {
+    "name": "GorivaSI_Diesel_Scraper",
+    "description": "Scraper for diesel fuel prices from goriva.si API",
+    "target_url": "https://goriva.si/api/v1/search/?format=json&position=Kranj",
+    "fetch_interval": 10800,
+    "format": "json",
+    "root_tag": "results"
+  },
+  "mapping_config": {
+    "node": {
+      "node_label": "Fuel_Station",
+      "node_serial": "pk",
+      "longitude": "lng",
+      "latitude": "lat",
+      "altitude": "0.0"
+    },
+    "sensors": [
+      {
+        "sensor_label": "name",
+        "sensor_name": "Diesel Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "Diesel fuel price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.dizel",
+          "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "diesel_price",
+          "phenomenon": "Diesel Fuel Price",
+          "unit": "EUR/L",
+          "value_min": 0,
+          "value_max": 5
+        }
+      },
+      {
+        "sensor_label": "name",
+        "sensor_name": "95 Octane Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "95 octane gasoline price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.95",
+            "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "gasoline_95_price",
+          "phenomenon": "95 Octane Gasoline Price",
+          "unit": "EUR/L",
+          "value_min": 0,
+          "value_max": 5
+        }
+      },
+      {
+        "sensor_label": "name",
+        "sensor_name": "98 Octane Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "98 octane gasoline price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.98",
+            "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "gasoline_98_price",
+          "phenomenon": "98 Octane Gasoline Price",
+          "unit": "EUR/L",
+          "value_min": 0,
+          "value_max": 5
+        }
+      },
+      {
+        "sensor_label": "name",
+        "sensor_name": "100 Octane Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "100 octane gasoline price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.100",
+            "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "gasoline_100_price",
+          "phenomenon": "100 Octane Gasoline Price",
+          "unit": "EUR/L",
+          "value_min": 0,
+          "value_max": 5
+        }
+      },
+      {
+        "sensor_label": "name",
+        "sensor_name": "Premium Diesel Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "Premium diesel fuel price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.dizel-premium",
+            "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "premium_diesel_price",
+          "phenomenon": "Premium Diesel Fuel Price",
+          "unit": "EUR/L",
+          "value_min": 0,
+          "value_max": 5
+        }
+      },
+      {
+        "sensor_label": "name",
+        "sensor_name": "LPG Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "Autoplin LPG price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.avtoplin-lpg",
+            "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "lpg_price",
+          "phenomenon": "LPG Fuel Price",
+          "unit": "EUR/L",
+          "value_min": 0,
+          "value_max": 5
+        }
+      },
+      {
+        "sensor_label": "name",
+        "sensor_name": "KOEL Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "Heating oil price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.KOEL",
+            "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "heating_oil_price",
+          "phenomenon": "Heating Oil Price",
+          "unit": "EUR/L",
+          "value_min": 0,
+          "value_max": 5
+        }
+      },
+      {
+        "sensor_label": "name",
+        "sensor_name": "HVO Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "HVO fuel price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.hvo",
+            "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "hvo_price",
+          "phenomenon": "HVO Fuel Price",
+          "unit": "EUR/L",
+          "value_min": 0,
+          "value_max": 5
+        }
+      },
+      {
+        "sensor_label": "name",
+        "sensor_name": "CNG Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "CNG fuel price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.cng",
+            "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "cng_price",
+          "phenomenon": "Compressed Natural Gas Price",
+          "unit": "EUR/kg",
+          "value_min": 0,
+          "value_max": 10
+        }
+      },
+      {
+        "sensor_label": "name",
+        "sensor_name": "LNG Price Sensor",
+        "longitude": "lng",
+        "latitude": "lat",
+        "altitude": "0.0",
+        "sensor_description": "LNG fuel price from goriva.si",
+        "measurements": [
+          {
+            "value": "prices.lng",
+            "timestamp_utc": null
+          }
+        ],
+        "sensor_type": {
+          "name": "lng_price",
+          "phenomenon": "Liquefied Natural Gas Price",
+          "unit": "EUR/kg",
+          "value_min": 0,
+          "value_max": 10
+        }
+      }
+    ]
+  }
+}

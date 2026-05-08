@@ -466,7 +466,8 @@
   cursor: pointer;
 }
 
-.leftnav-header:hover {
+.leftnav-header:hover,
+.leftnav-header.active  {
   background: linear-gradient(
     135deg,
     rgba(34, 96, 242, 0.95),

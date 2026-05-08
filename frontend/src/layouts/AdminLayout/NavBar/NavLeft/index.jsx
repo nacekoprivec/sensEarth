@@ -1,5 +1,7 @@
 // react-bootstrap
 import { ListGroup, Dropdown } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+
 
 // third party
 import FeatherIcon from 'feather-icons-react';
@@ -8,6 +10,22 @@ import { Link } from 'react-router-dom';
 // -----------------------|| NAV LEFT ||-----------------------//
 
 export default function NavLeft() {
+    const [activeTab, setActiveTab] = useState("dashboard");
+    useEffect(() => {
+      const currentPath = window.location.pathname;
+      if (currentPath === "/dashboard") {
+        setActiveTab("dashboard");
+      }
+      else if (currentPath === "/model-logs") {
+        setActiveTab("model-logs");
+      }
+      else if (currentPath === "/user-dashboard") {
+        setActiveTab("user-dashboard");
+      } 
+      else {
+        setActiveTab("");
+      }
+    }, [location.pathname]);
   return (
     <div className="nav-left-horizontal d-flex align-items-center gap-3">
       
@@ -69,15 +87,15 @@ export default function NavLeft() {
     </ListGroup>
     
     {/* Dashboard webpage */}
-      <Link to="/dashboard" className="leftnav-header text-decoration-none nav-item-link">
-        Dashboard
+      <Link to="/dashboard" className={activeTab === "dashboard" ? "leftnav-header active" : "leftnav-header"}>
+        AdminDashboard
       </Link>
     {/* Models webpage */}
-      <Link to="/model-logs" className="leftnav-header text-decoration-none nav-item-link " >
+      <Link to="/model-logs" className={activeTab === "model-logs" ? "leftnav-header active" : "leftnav-header"}>
         Models
       </Link>
     {/* User dashboard webpage */}
-      <Link to="/user-dashboard" className="leftnav-header text-decoration-none nav-item-link">
+      <Link to="/user-dashboard" className={activeTab === "user-dashboard" ? "leftnav-header active" : "leftnav-header"}>
         UserDashboard
       </Link>
 </div>
