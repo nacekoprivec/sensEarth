@@ -8,13 +8,16 @@ RUN npm ci
 
 # Copy source code and build
 COPY . .
-RUN npm run build
+RUN npm run build -- --emptyOutDir
 
 # Use Nginx to serve the built frontend
 FROM nginx:alpine
 
 # Remove default Nginx website
 RUN rm -rf /usr/share/nginx/html/*
+
+# Copy custom Nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built React app
 COPY --from=build /app/dist /usr/share/nginx/html

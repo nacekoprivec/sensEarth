@@ -126,13 +126,14 @@ graph TD
 
    ```
   
-  sensEarth/fronend/
+  sensEarth/frontend/
   ```
    VITE_MIDDLEWARE_API_URL=http://localhost:5006
    VITE_MONITORING_API_URL=http://localhost:8001
   ```
   
-  **IMPORTANT:** VITE_MIDDLEWARE_API_URL and VITE_MONITORING_API_URL need a seperate .env inside frontend/
+  In production, the frontend is configured to proxy API calls through Nginx at `/middleware` and `/monitoring`.
+  The static build uses `frontend/.env.production` to route to the backend via the same origin.
 
 3. Start the services:
    ```
