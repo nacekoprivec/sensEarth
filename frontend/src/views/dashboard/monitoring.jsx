@@ -9,7 +9,11 @@ export default function MonitoringDashboard( {modelsUpdated} ) {
   const fetchComponents = async () => {
     try {
       const res = await monitoring_api.get("/components"); 
-      setComponents(res.data);
+      const componentsData = Array.isArray(res.data) ? res.data : [];
+      if (!Array.isArray(res.data)) {
+        console.warn("Monitoring components response was not an array, defaulting to []:", res.data);
+      }
+      setComponents(componentsData);
     } catch (error) {
       console.error("Failed to fetch components:", error);
       setComponents([]);

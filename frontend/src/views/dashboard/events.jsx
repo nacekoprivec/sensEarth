@@ -9,8 +9,12 @@ export default function EventsDashboard() {
   const fetchEvents = async () => {
     try {
       const res = await monitoring_api.get("/events");
-      setEvents(res.data);
-      console.log("Fetched events:", res.data);
+      const eventsData = Array.isArray(res.data) ? res.data : [];
+      if (!Array.isArray(res.data)) {
+        console.warn("Monitoring events response was not an array, defaulting to []:", res.data);
+      }
+      setEvents(eventsData);
+      console.log("Fetched events:", eventsData);
     } catch (error) {
       console.error("Failed to fetch events:", error);
       setEvents([]);

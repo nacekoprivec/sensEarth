@@ -88,7 +88,7 @@ export default function NavLeft() {
     
     {/* Dashboard webpage */}
       <Link to="/dashboard" className={activeTab === "dashboard" ? "leftnav-header active" : "leftnav-header"}>
-        AdminDashboard
+        Operations
       </Link>
     {/* Models webpage */}
       <Link to="/model-logs" className={activeTab === "model-logs" ? "leftnav-header active" : "leftnav-header"}>
@@ -96,7 +96,7 @@ export default function NavLeft() {
       </Link>
     {/* User dashboard webpage */}
       <Link to="/user-dashboard" className={activeTab === "user-dashboard" ? "leftnav-header active" : "leftnav-header"}>
-        UserDashboard
+        Analysis
       </Link>
 </div>
   );
