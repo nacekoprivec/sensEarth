@@ -1,18 +1,10 @@
-# DashboardKit Free React Admin Dashboard Template
-
-#### Preview
-
- - [Demo](https://themewagon.github.io//)
-
-#### Download
- - [Download from ThemeWagon]( https://themewagon.com/themes/)
- 
+# DashboardKit Free React Admin Dashboard Template 
  
 ## Getting Started
 
 Clone from Github 
 ```
-https://github.com/themewagon/Gradient-Able-free-bootstrap-admin-template.git
+https://github.com/codedthemes/dashboardkit-free-admin-template/tree/main/react
 ```
 ## Run Local Server
 ```

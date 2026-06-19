@@ -233,20 +233,31 @@ def ingest_measurements(payload: dataIngestPayload, db: Session) -> Dict[str, An
         ).fetchall()
         hash_to_id = {row[0]: row[1] for row in rows}
 
+    skipped_invalid_hash = 0
     for measurement in payload:
         sensor_hash = measurement.sensor_hash
         ts = measurement.timestamp_utc
         value = measurement.value
 
         sensor_id_db = hash_to_id.get(sensor_hash)
-        if sensor_id_db is None: # ID in database not found
-            raise HTTPException(status_code=404, detail=f"Sensor '{sensor_hash}' not found")
+        if sensor_id_db is None:
+            logger.warning(f"Sensor hash '{sensor_hash}' not found, skipping measurement")
+            skipped_invalid_hash += 1
+            continue
         try:
             val = float(value)
             measurement_buffer.append((sensor_id_db, ts, val))
         except (TypeError, ValueError):
             logger.warning(f"Skipping invalid measurement: {measurement}")
             continue
+
+    emit_metric(
+        name="middleware",
+        instance_id="default",
+        metric_name="skipped_invalid_hash",
+        value=skipped_invalid_hash,
+        unit="count"
+    )
 
     if measurement_buffer:  
         conn = db.get_bind().raw_connection()  # get psycopg2 connection

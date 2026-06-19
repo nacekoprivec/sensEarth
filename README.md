@@ -66,42 +66,42 @@ Requirements for monitoring:
 
 ### User Interface
 
-* use a framework, like Next.js
+* use React + Vite (see `frontend/`)
 * framework should display data from all the above components; monitoring, status of scrapers, data, models
 * it should have a dashboard + possiblity to build custom dashboards
 * it should have a detailed view of the data
 * it should show error metrics of the models through time
 
-## Simple architecture
+## Architecture
+
+High-level component view (all services run via Docker Compose):
 
 ```mermaid
-graph TD
-  D1[Data Source 1] --> A
-  D2[DS2] --> A
-  D3[DS3] --> A
-
-  A[Scrapers] --> B
-  B --> C[Model Services]
-  C --> B
-  B --> D[User Interface]
-  MON --> D
-
-  subgraph B [Middleware / API]
-    direction TB
-    B1[Raw Data Storage]
-    B2[Structured Data Storage]
+flowchart TB
+ subgraph DOCKER["Docker Compose"]
+        SCR["Scrapers<br>web_scraper"]
+        MINIO[("MinIO<br>raw storage")]
+        MW["Middleware<br>FastAPI"]
+        DB[("Core DB<br>PostgreSQL · TimescaleDB · PostGIS")]
+        MODEL["Modeling<br>anomaly detection · forecasting"]
+        MON["Monitoring<br>Monitoring API"]
+        MONDB[("Monitoring DB<br>PostgreSQL")]
+        UI["Web UI<br>Nginx · React · Vite · MapLibre"]
   end
-
-  subgraph MON[Monitoring / WatchDog]
-    direction TB
-    M[Watchdogs for all components]
-  end
-
-  A -.-> MON
-  B -.-> MON
-  C -.-> MON
-  D -.-> MON
+    SRC["External sources<br>ARSO, Goriva.si, …"] --> SCR
+    SCR --> MINIO & MW
+    MW --> DB & MODEL
+    MODEL --> DB
+    MW -.-> MON
+    SCR -.-> MON
+    MODEL -.-> MON
+    MON --> MONDB
+    USER(["Browser"]) --> UI
+    UI -- /middleware --> MW
+    UI -- /monitoring --> MON
 ```
+
+**Legend:** solid arrows = main data flow; dashed arrows = telemetry / monitoring and API proxy paths.
 
 ## How to Run
 

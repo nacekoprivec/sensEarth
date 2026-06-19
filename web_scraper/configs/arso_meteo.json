@@ -5,7 +5,9 @@
     "target_url": "https://meteo.arso.gov.si/uploads/probase/www/observ/surface/text/sl/observation_si_latest.xml",
     "fetch_interval": 3600,
     "format": "xml",
-    "root_tag": "metData"
+    "root_tag": "metData",
+    "node_hash_fields": ["node_label", "node_serial", "longitude", "latitude", "altitude"],
+    "sensor_hash_fields": ["node_hash", "sensor_name", "longitude", "latitude", "altitude"]
   },
   "mapping_config": {
     "node": {

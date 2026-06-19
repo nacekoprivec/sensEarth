@@ -5,7 +5,9 @@
     "target_url": "https://goriva.si/api/v1/search/?format=json&position=Maribor",
     "fetch_interval": 10800,
     "format": "json",
-    "root_tag": "results"
+    "root_tag": "results",
+    "node_hash_fields": ["node_label", "node_serial", "longitude", "latitude", "altitude"],
+    "sensor_hash_fields": ["node_hash", "sensor_name", "longitude", "latitude", "altitude"]
   },
   "mapping_config": {
     "node": {

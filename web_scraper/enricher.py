@@ -1,112 +1,148 @@
-from __future__ import annotations
+import math
 
-from typing import Any
+from logger import logger
+
+_NULL_STRINGS = frozenset({"null", "none", "n/a"})
+_ALTITUDE_SENTINEL = "kota_0" # legacy sentinel for altitude
+
+
+def clean_placeholder(value):
+    """
+    Normalize text fields: empty or sentinel strings become None.
+
+    - None stays None
+    - Empty or whitespace-only strings -> None
+    - "null", "none", "n/a" (any case) -> None
+    - Other strings -> stripped string
+    - Non-string scalars pass through unchanged
+    """
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        return value
+
+    stripped = value.strip()
+    if stripped == "" or stripped.lower() in _NULL_STRINGS:
+        return None
+
+    return stripped
+
+
+def coerce_numeric(value):
+    """
+    Convert a scalar measurement or coordinate value to float or None.
+
+    - None stays None
+    - bool -> None (avoid True/False silently becoming 1.0/0.0)
+    - Empty or whitespace-only strings -> None
+    - "null", "none", "n/a" (any case) -> None
+    - "kota_0" (altitude sentinel) -> 0.0
+    - Valid finite numeric strings and int/float -> float
+    - nan / inf (would serialize to invalid JSON) -> None
+    - Other types or unparseable strings -> None
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, bool):
+        return None
+
+    if isinstance(value, (int, float)):
+        return _finite_or_none(float(value))
+
+    if isinstance(value, str):
+        cleaned = clean_placeholder(value)
+        if cleaned is None:
+            return None
+        if cleaned.lower() == _ALTITUDE_SENTINEL:
+            return 0.0
+        try:
+            parsed = float(cleaned)
+        except ValueError:
+            logger.warning(f"[Enricher] Could not parse numeric value: {value!r}")
+            return None
+        return _finite_or_none(parsed)
+
+    return None
+
+
+def _finite_or_none(number: float):
+    """nan/inf serialize to invalid JSON (NaN/Infinity), so drop them to None."""
+    return number if math.isfinite(number) else None
+    
+
+_COORD_FIELDS = ("longitude", "latitude", "altitude")
+_NODE_TEXT_FIELDS = ("node_label", "node_serial")
+_SENSOR_TEXT_FIELDS = ("sensor_label", "sensor_name", "sensor_description")
+
 
 class Enricher:
     """
-    Post-process mapped records to ensure hash-stable coordinate fields.
+    Cleans and normalizes mapped records before hashing and ingest.
 
-    The Mapper falls back to the mapping token (e.g. "domain_lon") when the
-    extracted record misses a key. That breaks stable hashes, so we clean
-    those placeholders back to None and propagate coords between `node` and
-    each element in `sensors`.
+    Expects the Mapper output shape: {"node": {...}, "sensors": [...]}.
     """
 
-    COORD_FIELDS = ("longitude", "latitude", "altitude")
+    def clean_text_fields(self, entity: dict, fields: tuple[str, ...]) -> None:
+        for field in fields:
+            if field in entity:
+                entity[field] = clean_placeholder(entity[field])
 
-    def __init__(self, mapping_config: dict[str, Any] | None):
-        mapping_config = mapping_config or {}
-        node_cfg = mapping_config.get("node") or {}
+    def clean_coords(self, entity: dict) -> None:
+        for field in _COORD_FIELDS:
+            if field in entity:
+                entity[field] = coerce_numeric(entity[field])
 
-        # Collect record-key tokens used to populate lon/lat/alt.
-        self._coord_tokens: set[str] = set()
-        for coord_field in self.COORD_FIELDS:
-            token = node_cfg.get(coord_field)
-            if isinstance(token, str):
-                self._coord_tokens.add(token)
+    def default_altitude(self, entity: dict) -> None:
+        """API expects a numeric altitude; missing or cleaned-null becomes 0.0."""
+        if entity.get("altitude") is None:
+            entity["altitude"] = 0.0
 
-        for sensor_cfg in mapping_config.get("sensors") or []:
-            for coord_field in self.COORD_FIELDS:
-                token = sensor_cfg.get(coord_field)
-                if isinstance(token, str):
-                    self._coord_tokens.add(token)
+    def clean_node(self, node: dict) -> None:
+        self._clean_text_fields(node, _NODE_TEXT_FIELDS)
+        self._clean_coords(node)
+        self._default_altitude(node)
 
-    def _clean_coord_value(self, value: Any) -> Any:
-        if value is None:
-            return None
-        if isinstance(value, str):
-            s = value.strip()
-            if s == "":
-                return None
-            # If the Mapper couldn't find the key, it leaves the mapping token.
-            if s in self._coord_tokens:
-                return None
-            return s
-        return value
-
-    def _node_key_from_record(self, record: dict[str, Any]) -> str | None:
+    def clean_measurements(self, sensor: dict) -> None:
         """
-        Build the cache key `<domain_id>|<domain_shortTitle>` using mapped fields.
+        Coerce measurement values to float or None.
 
-        In current mappings:
-        - `domain_id` is mapped into `node.node_serial`
-        - `domain_shortTitle` is mapped into `sensor.sensor_label`
+        Modifies sensor["measurements"] in place. Timestamps are left
+        unchanged; send_measurements handles those via normalize_timestamp.
         """
-        node = record.get("node") or {}
-        sensors = record.get("sensors") or []
+        measurements = sensor.get("measurements")
+        if not isinstance(measurements, list):
+            return
 
-        domain_id = node.get("node_serial")
-        domain_short_title = sensors[0].get("sensor_label") if sensors else None
+        for measurement in measurements:
+            if not isinstance(measurement, dict):
+                continue
+            measurement["value"] = coerce_numeric(measurement.get("value"))
 
-        if domain_id is None or domain_short_title is None:
-            return None
-        return f"{domain_id}|{domain_short_title}"
+    def clean_sensor(self, sensor: dict) -> None:
+        self._clean_text_fields(sensor, _SENSOR_TEXT_FIELDS)
+        self._clean_coords(sensor)
+        self._default_altitude(sensor)
+        self._clean_measurements(sensor)
 
-    def enrich_records(self, records: list[dict[str, Any]], node_meta: dict[str, dict[str, Any]] | None = None,) -> list[dict[str, Any]]:
-        for record in records:
-            node = record.get("node") or {}
-            sensors = record.get("sensors") or []
+    def enrich_record(self, record: dict) -> dict:
+        """
+        Clean a single mapped record.
 
-            # Clean placeholders first.
-            for coord_field in self.COORD_FIELDS:
-                if coord_field in node:
-                    node[coord_field] = self._clean_coord_value(node.get(coord_field))
+        Returns the same dict (in-place updates).
+        """
+        if not isinstance(record, dict):
+            return record
 
-            for sensor in sensors:
-                for coord_field in self.COORD_FIELDS:
-                    if coord_field in sensor:
-                        sensor[coord_field] = self._clean_coord_value(sensor.get(coord_field))
+        node = record.get("node")
+        if isinstance(node, dict):
+            self._clean_node(node)
 
-            # Backfill missing node coords from local cache (state) if available.
-            if node_meta:
-                node_key = self._node_key_from_record(record)
-                cached = node_meta.get(node_key) if node_key else None
-                if isinstance(cached, dict):
-                    for coord_field in self.COORD_FIELDS:
-                        if node.get(coord_field) is None and cached.get(coord_field) is not None:
-                            node[coord_field] = cached.get(coord_field)
+        for sensor in record.get("sensors") or []:
+            if isinstance(sensor, dict):
+                self._clean_sensor(sensor)
+        return record
 
-            # If node is missing a coordinate, try to copy it from the first sensor that has it.
-            sensor_first_with_value: dict[str, Any] = {k: None for k in self.COORD_FIELDS}
-            for coord_field in self.COORD_FIELDS:
-                for sensor in sensors:
-                    val = sensor.get(coord_field)
-                    if val is not None:
-                        sensor_first_with_value[coord_field] = val
-                        break
-
-            for coord_field in self.COORD_FIELDS:
-                if node.get(coord_field) is None and sensor_first_with_value[coord_field] is not None:
-                    node[coord_field] = sensor_first_with_value[coord_field]
-
-            # If sensors are missing coords but node has them, propagate node coords to all sensors.
-            for sensor in sensors:
-                for coord_field in self.COORD_FIELDS:
-                    if sensor.get(coord_field) is None and node.get(coord_field) is not None:
-                        sensor[coord_field] = node.get(coord_field)
-
-            record["node"] = node
-            record["sensors"] = sensors
-
-        return records
-
+    def enrich_records(self, records: list[dict]) -> list[dict]:
+        return [self.enrich_record(r) for r in records]

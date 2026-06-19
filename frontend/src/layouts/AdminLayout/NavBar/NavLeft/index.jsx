@@ -1,3 +1,4 @@
+
 // react-bootstrap
 import { ListGroup, Dropdown } from 'react-bootstrap';
 import React, { useState, useEffect } from 'react';
@@ -5,14 +6,15 @@ import React, { useState, useEffect } from 'react';
 
 // third party
 import FeatherIcon from 'feather-icons-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 // -----------------------|| NAV LEFT ||-----------------------//
 
 export default function NavLeft() {
     const [activeTab, setActiveTab] = useState("dashboard");
+    const location = useLocation();
     useEffect(() => {
-      const currentPath = window.location.pathname;
+      const currentPath = location.pathname;
       if (currentPath === "/dashboard") {
         setActiveTab("dashboard");
       }

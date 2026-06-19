@@ -5,7 +5,9 @@
     "target_url": "https://www.arso.gov.si/xml/zrak/ones_zrak_urni_podatki_zadnji.xml",
     "fetch_interval": 3600,
     "format": "xml",
-    "root_tag": "postaja"
+    "root_tag": "postaja",
+    "node_hash_fields": ["node_label", "node_serial", "longitude", "latitude", "altitude"],
+    "sensor_hash_fields": ["node_hash", "sensor_name", "longitude", "latitude", "altitude"]
   },
 
   "mapping_config": {
