@@ -100,9 +100,9 @@ class Enricher:
             entity["altitude"] = 0.0
 
     def clean_node(self, node: dict) -> None:
-        self._clean_text_fields(node, _NODE_TEXT_FIELDS)
-        self._clean_coords(node)
-        self._default_altitude(node)
+        self.clean_text_fields(node, _NODE_TEXT_FIELDS)
+        self.clean_coords(node)
+        self.default_altitude(node)
 
     def clean_measurements(self, sensor: dict) -> None:
         """
@@ -121,10 +121,10 @@ class Enricher:
             measurement["value"] = coerce_numeric(measurement.get("value"))
 
     def clean_sensor(self, sensor: dict) -> None:
-        self._clean_text_fields(sensor, _SENSOR_TEXT_FIELDS)
-        self._clean_coords(sensor)
-        self._default_altitude(sensor)
-        self._clean_measurements(sensor)
+        self.clean_text_fields(sensor, _SENSOR_TEXT_FIELDS)
+        self.clean_coords(sensor)
+        self.default_altitude(sensor)
+        self.clean_measurements(sensor)
 
     def enrich_record(self, record: dict) -> dict:
         """
@@ -137,11 +137,11 @@ class Enricher:
 
         node = record.get("node")
         if isinstance(node, dict):
-            self._clean_node(node)
+            self.clean_node(node)
 
         for sensor in record.get("sensors") or []:
             if isinstance(sensor, dict):
-                self._clean_sensor(sensor)
+                self.clean_sensor(sensor)
         return record
 
     def enrich_records(self, records: list[dict]) -> list[dict]:

@@ -4,6 +4,9 @@ import datetime
 import hashlib
 import json
 
+from monitoring.client import emit_event, emit_metric
+from utils import safe_emit
+
 init_bucket()   # ensure bucket exists once on import
 
 def calculate_content_hash(data: bytes) -> str:
@@ -25,6 +28,8 @@ def store_raw_response(response):
     # Skip upload if already exists
     if object_exists(object_name):
         print(f"[Storage] Duplicate skipped: {object_name}")
+        safe_emit(emit_event, name="minio", instance_id="default", event_type="duplicate_skipped", severity="INFO", message=f"Skipped duplicate object {object_name}", metadata={"object_name": object_name})
+        safe_emit(emit_metric, name="minio", instance_id="default", metric_name="duplicate_skip_count", value=1, unit="count")
         return object_name, False
 
     # Upload to MinIO

@@ -20,7 +20,7 @@ from extractors.html_extractor import HTMLExtractor
 
 from monitoring.client import emit_component_registration, emit_event, emit_metric, emit_heartbeat
 
-from raw_data.raw_storage import download_raw_data, list_raw_objects
+from raw_data.raw_storage import download_raw_data, list_raw_objects, MINIO_INSTANCE_ID
 
 EXTRACTOR_MAP = {
     "xml": XMLExtractor,
@@ -64,7 +64,10 @@ class Scraper:
         self.state_file = os.path.join(STATE_DIR, f"{self.name}_state.json")
         self.state = self.load_state()
 
-        safe_emit(emit_component_registration, name="scraper",instance_id=self.name, component_type="scraper")
+        safe_emit(emit_component_registration, name="scraper", instance_id=self.name, component_type="scraper")
+        safe_emit(emit_component_registration, name="minio", instance_id=MINIO_INSTANCE_ID, component_type="minio")
+        safe_emit(emit_heartbeat, name="minio", instance_id=MINIO_INSTANCE_ID, status="OK")
+        safe_emit(emit_event, name="minio", instance_id=MINIO_INSTANCE_ID, event_type="bucket_ready", severity="INFO", message=f"MinIO ready for scraper {self.name}")
 
     def save_state(self):
         with open(self.state_file, "w") as f:
@@ -329,16 +332,20 @@ class MinIOReplayScraper(Scraper):
         """
 
         logger.info(f"[{self.name}] Starting MinIO replay")
+        safe_emit(emit_event, name="minio", instance_id="default", event_type="replay_started", severity="INFO", message=f"MinIO replay started for scraper {self.name}", metadata={"prefix": prefix})
 
         object_names = list_raw_objects(prefix)
 
         logger.info(f"[{self.name}] Found {len(object_names)} raw objects")
+        reprocessed = 0
+        failed = 0
 
         for object_name in object_names:
             raw = download_raw_data(object_name)
 
             if not raw:
                 logger.warning(f"Skipping unreadable object {object_name}")
+                failed += 1
                 continue
             try:
                 extracted = self.extractor.extract(
@@ -360,9 +367,17 @@ class MinIOReplayScraper(Scraper):
                     self.send_measurements(chunk)
 
                 logger.info(f"Reprocessed {object_name}")
+                reprocessed += 1
 
             except Exception as e:
                 logger.error(f"Replay failed for {object_name}: {e}")
+                failed += 1
+                safe_emit(emit_event, name="minio", instance_id="default", event_type="replay_object_failed", severity="ERROR", message=f"Replay failed for {object_name}: {e}", metadata={"object_name": object_name})
+
+        safe_emit(emit_metric, name="minio", instance_id="default", metric_name="replay_objects_reprocessed", value=reprocessed, unit="count")
+        safe_emit(emit_metric, name="minio", instance_id="default", metric_name="replay_objects_failed", value=failed, unit="count")
+        safe_emit(emit_event, name="minio", instance_id="default", event_type="replay_completed", severity="INFO", message=f"MinIO replay completed for scraper {self.name}", metadata={"reprocessed": reprocessed, "failed": failed})
+        safe_emit(emit_heartbeat, name="minio", instance_id="default", status="OK" if failed == 0 else "FAIL")
 
 
 async def main():

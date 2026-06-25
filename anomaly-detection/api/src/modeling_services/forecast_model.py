@@ -1,5 +1,5 @@
 from .base import BaseModel
-from src.Test import Test
+from src.DetectionPipeline import DetectionPipeline
 from monitoring.client import emit_component_registration, emit_heartbeat, emit_event, emit_metric
 
 class ForecastModel(BaseModel):
@@ -18,7 +18,7 @@ class ForecastModel(BaseModel):
         for m in measurements
         ]
 
-        self.model_run = Test(conf=self.conf)
+        self.model_run = DetectionPipeline(conf=self.conf)
 
         emit_metric(
             name="forecast_model",

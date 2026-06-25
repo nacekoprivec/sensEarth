@@ -9,7 +9,7 @@ from datetime import datetime
 import itertools  
 from typing import Any, Dict, List
 from multiprocessing import Process
-from src.Test import Test
+from src.DetectionPipeline import DetectionPipeline
 from src.consumer import ConsumerAbstract, ConsumerFile, ConsumerKafka
 
 import numpy as np
@@ -58,9 +58,9 @@ def start_consumer(args: argparse.Namespace) -> None:
         consumer = ConsumerFile(configuration_location=args.config)
 
     elif args.test:
-        test_instance = Test(configuration_location="border_check.json")
-        test_instance.read_streaming_data(args.data)
-        return test_instance
+        detection_pipeline = DetectionPipeline(configuration_location="border_check.json")
+        detection_pipeline.read_streaming_data(args.data)
+        return detection_pipeline
 
     else:
         consumer = ConsumerKafka(configuration_location=args.config)

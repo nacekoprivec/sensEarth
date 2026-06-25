@@ -29,7 +29,7 @@ export default function NavLeft() {
       }
     }, [location.pathname]);
   return (
-    <div className="nav-left-horizontal d-flex align-items-center gap-3">
+    <div className="nav-left-horizontal d-flex align-items-center gap-3 margin-top-10">
       
     <ListGroup as="ul" bsPrefix=" " className="list-unstyled">
       <Dropdown as="li" className="pc-h-item">

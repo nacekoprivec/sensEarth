@@ -62,7 +62,6 @@ def normalize(payload: dict):
     Registration-time fixes for fields that may appear on node/sensor
     entries in the /register payload but outside mapped measurements.
 
-    Altitude and coordinate cleaning are handled by Enricher before hashing.
     """
     for entity_type in ("nodes", "sensors"):
         for item in payload.get(entity_type, []):

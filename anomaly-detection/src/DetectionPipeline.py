@@ -45,7 +45,7 @@ import pandas as pd
 from typing import Any, Dict, List
 from consumer import ConsumerAbstract
 
-class Test(ConsumerAbstract):
+class DetectionPipeline(ConsumerAbstract):
     def __init__(self, conf: Dict[Any, Any] = None, configuration_location: str = None) -> None:
         super().__init__(configuration_location=configuration_location) 
         self.data_buffer = []  # Store manually inserted data
