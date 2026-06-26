@@ -172,7 +172,7 @@ def get_metrics_db(db: Session):
             FROM metrics m
             JOIN components c ON m.component_id = c.component_id
             ORDER BY m.timestamp DESC
-            LIMIT 100
+            LIMIT 1000
         """)).mappings().all()
         logger.info(f"Fetched {len(rows)} metrics from database")
         return rows

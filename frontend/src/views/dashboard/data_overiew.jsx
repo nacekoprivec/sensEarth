@@ -115,9 +115,22 @@ export default function DataOverview({ refreshKey }) {
         const latestMatch = latest.message.match(/Inserted\s+(\d+)\s+measurements/i);
         const latestCount = latestMatch ? Number(latestMatch[1]) : null;
 
-        // Extract duplicates count from metrics
-        const dupMetrics = metrics.filter(m => m.metric_name === "duplicates_skipped");
-        const numDuplicates = dupMetrics.reduce((sum, m) => sum + m.value, 0) || null;
+        // Count duplicates from monitoring events (and metrics as fallback)
+        const dupFromEvents = list.filter(
+          (e) =>
+            e.event_type === "duplicate_skipped" ||
+            e.event_type === "duplicate_raw_skipped"
+        ).length;
+
+        const dupFromMetrics = metrics
+          .filter(
+            (m) =>
+              m.metric_name === "duplicate_skip_count" ||
+              m.metric_name === "duplicate_raw_count"
+          )
+          .reduce((sum, m) => sum + (Number(m.value) || 0), 0);
+
+        const numDuplicates = Math.max(dupFromEvents, dupFromMetrics);
 
         // Extract invalid measurements % from metrics
         const invalidMetric = metrics.find(m => m.metric_name === "measurements_skipped_rate");
@@ -200,7 +213,7 @@ export default function DataOverview({ refreshKey }) {
                   label="Duplicates"
                   value={
                     data.numDuplicates == null
-                      ? "0"
+                      ? "—"
                       : `${data.numDuplicates}`
                   }
                 />
