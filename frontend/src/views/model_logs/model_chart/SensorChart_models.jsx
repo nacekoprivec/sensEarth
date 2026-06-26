@@ -49,5 +49,5 @@ export default function SensorChart({ measurements }) {
     series
   };
 
-  return <ReactECharts option={option} style={{ height: 400 }} />;
+  return <ReactECharts option={option} style={{ height: "100%", width: "100%" }} />;
 }

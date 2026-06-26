@@ -259,14 +259,25 @@ export default function MapDashboard({ selectedSensors, onAddSensorToChart }) {
       > 
           <Box
             display="flex"
-            alignItems="center"
+            alignItems="flex-start"
             justifyContent="space-between"
             gap={1}
-            sx={{ pr: 4 }}
+            sx={{ pr: 6, mb: 0.5 }}
           >
-            <Typography variant="subtitle1" gutterBottom sx={{ mb: 0 }}>
+            <Typography variant="subtitle1" sx={{ mb: 0, lineHeight: 1.3 }}>
               Measurements — {selectedSensor.label}
             </Typography>
+          </Box>
+          <Box
+            sx={{
+              position: "absolute",
+              top: 6,
+              right: 6,
+              display: "flex",
+              alignItems: "center",
+              gap: 0.25,
+            }}
+          >
             <Tooltip title="Add to chart">
               <span>
                 <IconButton
@@ -279,16 +290,10 @@ export default function MapDashboard({ selectedSensors, onAddSensorToChart }) {
                 </IconButton>
               </span>
             </Tooltip>
+            <IconButton size="small" onClick={() => setSelectedSensor(null)} aria-label="Close">
+              <CloseIcon fontSize="small" />
+            </IconButton>
           </Box>
-          <IconButton size="small" onClick={() => setSelectedSensor(null)} 
-          style={{
-            position: "absolute",
-            top: 6,
-            right: 6
-          }}
-        >
-          <CloseIcon fontSize="small" />
-        </IconButton>
 
         {loadingMeasurements ? (
           <CircularProgress size={20} />

@@ -116,7 +116,14 @@ export default function UserDashboard() {
         </Card>
         
         <ModelChartSettings allSensors={allSensors} />
-        <LatestMeasurementsDashboard sensors={sensors} loading={loading} />
+        <LatestMeasurementsDashboard
+          sensors={sensors}
+          loading={loading}
+          onRefresh={() => {
+            setLoading(true);
+            fetchSensors();
+          }}
+        />
 
       </div>
     </>

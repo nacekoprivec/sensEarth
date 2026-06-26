@@ -189,7 +189,7 @@ export default function MapDashboard() {
         type: 'circle',
         source: 'sensors',
         paint: {
-          'circle-radius': 8,
+          'circle-radius': 6,
           'circle-color': [
             'match',
             ['get', 'status'],
