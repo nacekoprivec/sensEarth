@@ -136,24 +136,19 @@ export default function DataOverview({ refreshKey }) {
           }
         }
 
-        // Extract active sensors count
-
-        const firstTs = middlewareEvents[0]?.timestamp
-          ? new Date(middlewareEvents[0].timestamp)
-          : null;
-        const lastTs = latest.timestamp ? new Date(latest.timestamp) : null;
+        // Average ingested per calendar day that had at least one ingest event
+        const ingestDays = new Set(
+          middlewareEvents.map((e) => new Date(e.timestamp).toISOString().slice(0, 10))
+        ).size;
 
         let ratePerDay = null;
-        if (firstTs && lastTs && lastTs > firstTs) {
-          const spanDays =
-            (lastTs - firstTs) / (1000 * 60 * 60 * 24);
-          if (spanDays > 0) ratePerDay = total / spanDays;
-        }
+        if (ingestDays > 0) ratePerDay = total / ingestDays;
 
         setData({
           total,
           latestCount,
           ratePerDay,
+          ingestDays,
           numDuplicates,
           invalidPercent,
           failedCount,
@@ -205,7 +200,7 @@ export default function DataOverview({ refreshKey }) {
                   label="Duplicates"
                   value={
                     data.numDuplicates == null
-                      ? "—"
+                      ? "0"
                       : `${data.numDuplicates}`
                   }
                 />
@@ -244,6 +239,11 @@ export default function DataOverview({ refreshKey }) {
                     data.total == null
                       ? "—"
                       : `${data.total.toLocaleString()} records`
+                  }
+                  subtext={
+                    data.ingestDays == null
+                      ? null
+                      : `${data.ingestDays} day${data.ingestDays === 1 ? "" : "s"}`
                   }
                 />
 

@@ -156,7 +156,7 @@ def get_events_db(db: Session):
             FROM events e
             JOIN components c ON e.component_id = c.component_id
             ORDER BY e.timestamp DESC
-            LIMIT 100
+            LIMIT 1000
         """)).mappings().all()
         logger.info(f"Fetched {len(rows)} events from database")
         return rows
