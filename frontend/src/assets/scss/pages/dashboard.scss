@@ -1198,6 +1198,22 @@
     .measurements-dashboard__refresh {
       flex-shrink: 0;
     }
+
+    .measurements-table tbody td:last-child {
+      text-align: right;
+    }
+
+    .measurements-table__value {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-weight: 600;
+    }
+
+    .measurements-table__value-icon {
+      color: #adb5bd;
+      flex-shrink: 0;
+    }
   }
 }
 

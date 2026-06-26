@@ -41,6 +41,7 @@ export default function MapDashboard({ selectedSensors, onAddSensorToChart }) {
   const [loading, setLoading] = useState(true);
 
   const [selectedSensor, setSelectedSensor] = useState(null);
+  const [locationSensors, setLocationSensors] = useState([]);
   const [measurements, setMeasurements] = useState([]);
   const [loadingMeasurements, setLoadingMeasurements] = useState(false);
   const [sensorMetrics, setSensorMetrics] = useState([]);
@@ -70,6 +71,24 @@ export default function MapDashboard({ selectedSensors, onAddSensorToChart }) {
     } finally {
       setLoadingMetrics(false);
     }
+  };
+
+  const loadSensorData = async (sensor) => {
+    setSelectedSensor(sensor);
+    setSensorMetrics([]);
+
+    setLoadingMeasurements(true);
+    const data = await fetchMeasurements([sensor.id], 30);
+    setMeasurements(data);
+    setLoadingMeasurements(false);
+
+    fetchMonitoringData(sensor.id);
+  };
+
+  const getGroupStatus = (sensorGroup) => {
+    if (sensorGroup.some((s) => s.status === 'error')) return 'error';
+    if (sensorGroup.some((s) => s.status !== 'active')) return 'inactive';
+    return 'active';
   };
 
   const fetchSensors = async () => {
@@ -118,27 +137,43 @@ export default function MapDashboard({ selectedSensors, onAddSensorToChart }) {
     popupRef.current = new maplibregl.Popup();
 
     map.on('load', () => {
+      const grouped = {};
+
+      sensors
+        .filter((s) => s.location)
+        .forEach((s) => {
+          const coords = JSON.parse(s.location).coordinates;
+          const key = coords.join(",");
+
+          if (!grouped[key]) {
+            grouped[key] = {
+              coordinates: coords,
+              sensors: [],
+            };
+          }
+
+          grouped[key].sensors.push({
+            id: s.sensor_id,
+            label: s.sensor_label,
+            status: s.sensor_status,
+            type: s.name,
+          });
+        });
+
       const geojson = {
         type: 'FeatureCollection',
-        features: sensors
-          .filter(s => s.location)
-          .map(s => {
-            const coords = JSON.parse(s.location).coordinates;
-
-            return {
-              type: 'Feature',
-              properties: {
-                id: s.sensor_id,
-                label: s.sensor_label,
-                status: s.sensor_status,
-                type: s.name,
-              },
-              geometry: {
-                type: 'Point',
-                coordinates: coords
-              }
-            };
-          })
+        features: Object.values(grouped).map((group) => ({
+          type: 'Feature',
+          properties: {
+            sensors: JSON.stringify(group.sensors),
+            status: getGroupStatus(group.sensors),
+            sensorCount: group.sensors.length,
+          },
+          geometry: {
+            type: 'Point',
+            coordinates: group.coordinates,
+          },
+        })),
       };
 
       map.addSource('sensors', {
@@ -171,28 +206,73 @@ export default function MapDashboard({ selectedSensors, onAddSensorToChart }) {
         const feature = e.features[0];
         const coords = feature.geometry.coordinates.slice();
 
-        const { label, status, type, id } = feature.properties;
+        const sensorsAtLocation = JSON.parse(feature.properties.sensors);
+        setLocationSensors(sensorsAtLocation);
 
-        setSelectedSensor({ id, label });
-        setSensorMetrics([]);
+        if (sensorsAtLocation.length === 1) {
+          await loadSensorData(sensorsAtLocation[0]);
+          return;
+        }
 
-        setLoadingMeasurements(true);
-        const data = await fetchMeasurements([id], 30);
-        setMeasurements(data);
-        setLoadingMeasurements(false);
+        const popupNode = document.createElement('div');
+        popupNode.style.minWidth = '180px';
 
-        fetchMonitoringData(id);
+        const title = document.createElement('div');
+        title.innerHTML = `<strong>Select sensor type</strong>`;
+        title.style.marginBottom = '8px';
 
+        popupNode.style.minWidth = '220px';
+        popupNode.style.maxWidth = '220px';
+
+        popupNode.style.maxHeight = '240px';
+        popupNode.style.overflowY = 'auto';
+
+        popupNode.style.paddingRight = '4px';
+
+        popupNode.appendChild(title);
+
+        sensorsAtLocation.forEach((sensor) => {
+          const button = document.createElement('button');
+          button.innerText = `${sensor.type}`;
+          button.style.display = 'block';
+          button.style.width = '100%';
+          button.style.marginBottom = '6px';
+          button.style.padding = '6px';
+          button.style.cursor = 'pointer';
+          button.style.border = '1px solid #ccc';
+          button.style.borderRadius = '4px';
+          button.style.background =
+            selectedSensor?.id === sensor.id
+              ? '#1976d2'
+              : '#fff';
+
+          button.style.color =
+            selectedSensor?.id === sensor.id
+              ? '#fff'
+              : '#000';
+
+          button.onclick = async (event) => {
+            event.stopPropagation();
+
+            popupNode.querySelectorAll('button').forEach((btn) => {
+              btn.style.background = '#fff';
+              btn.style.color = '#000';
+            });
+
+            button.style.background = '#1976d2';
+            button.style.color = '#fff';
+
+            setLocationSensors(sensorsAtLocation);
+
+            await loadSensorData(sensor);
+          };
+
+          popupNode.appendChild(button);
+        });
 
         popupRef.current
           .setLngLat(coords)
-          .setHTML(`
-            <div style="font-size: 13px;">
-              <strong>${label}</strong><br/>
-              <div>Type: ${type}</div>
-              <div>Status: ${status}</div>
-            </div>
-          `)
+          .setDOMContent(popupNode)
           .addTo(map);
       });
 
@@ -290,7 +370,12 @@ export default function MapDashboard({ selectedSensors, onAddSensorToChart }) {
                 </IconButton>
               </span>
             </Tooltip>
-            <IconButton size="small" onClick={() => setSelectedSensor(null)} aria-label="Close">
+            <IconButton size="small" onClick={() => {
+              setSelectedSensor(null);
+              setLocationSensors([]);
+              setMeasurements([]);
+              setSensorMetrics([]);
+            }} aria-label="Close">
               <CloseIcon fontSize="small" />
             </IconButton>
           </Box>
