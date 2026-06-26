@@ -551,14 +551,16 @@
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .model-run-overview__controls {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .model-run-overview__run-label {

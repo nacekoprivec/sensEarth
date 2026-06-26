@@ -40,13 +40,25 @@ export default function SensorChart({ measurements }) {
   }, [measurements]);
 
   const option = {
-    grid: { left: 40, right: 20, top: 20, bottom: 95, containLabel: true },
+    grid: { left: 8, right: 16, top: 16, bottom: 88, containLabel: true },
     tooltip: { trigger: "axis", axisPointer: { type: "line" } },
-    legend: { type: "scroll", bottom: 0 },
-    xAxis: { type: "time", boundaryGap: false },
-    yAxis: { type: "value", min, max },
-    dataZoom: [{ type: "inside" }, { type: "slider", bottom: 35 }],
-    series
+    legend: { type: "scroll", bottom: 8, left: "center" },
+    xAxis: {
+      type: "time",
+      boundaryGap: false,
+      axisLabel: { hideOverlap: true },
+    },
+    yAxis: {
+      type: "value",
+      min,
+      max,
+      axisLabel: {
+        align: "right",
+        margin: 12,
+      },
+    },
+    dataZoom: [{ type: "inside" }, { type: "slider", bottom: 32, height: 18 }],
+    series,
   };
 
   return <ReactECharts option={option} style={{ height: "100%", width: "100%" }} />;
