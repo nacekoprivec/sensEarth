@@ -88,9 +88,10 @@ export default function MapDashboard() {
   };
 
   const getGroupStatus = (sensorGroup) => {
+    // Error wins; otherwise the location is active if any sensor there is still active.
     if (sensorGroup.some((s) => s.status === 'error')) return 'error';
-    if (sensorGroup.some((s) => s.status !== 'active')) return 'inactive';
-    return 'active';
+    if (sensorGroup.some((s) => s.status === 'active')) return 'active';
+    return 'inactive';
   };
 
   const fetchSensors = async () => {

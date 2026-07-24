@@ -156,6 +156,16 @@ def list_sensors(db: Session = Depends(get_db)):
     """
     return get_sensors(db)
 
+@router.get("/sensors/active")
+def list_active_sensors(db: Session = Depends(get_db)):
+    """
+    Display only sensors with status='active'.
+
+    Prefer this over /sensors when the caller does not need inactive sensors
+    (e.g. Active sensors KPI) — filtering happens in SQL, not in the client.
+    """
+    return get_sensors(db, status="active")
+
 @router.get("/sensors/{sensor_id}")
 def list_sensor(sensor_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """

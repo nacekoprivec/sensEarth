@@ -61,9 +61,10 @@ export default function DataOverview({ refreshKey }) {
   
   const fetchSensorsAll = async () => {
     try {
-      const res = await api.get("/sensors");
-      console.log("Fetched all sensors for data overview:", res.data);
-      const activeSensors = res.data.length;
+      // Active-only endpoint
+      const res = await api.get("/sensors/active");
+      console.log("Fetched active sensors for data overview:", res.data);
+      const activeSensors = Array.isArray(res.data) ? res.data.length : 0;
 
       setData((d) => ({ ...d, activeSensors }));
 
@@ -103,7 +104,19 @@ export default function DataOverview({ refreshKey }) {
       const latestScraper = scraperEvents[scraperEvents.length - 1];
 
       if (!latest) {
-        setData({});
+        // Keep activeSensors (and any other fields) from parallel fetches.
+        setData((d) => ({
+          ...d,
+          total: null,
+          latestCount: null,
+          ratePerDay: null,
+          ingestDays: null,
+          numDuplicates: null,
+          invalidPercent: null,
+          failedCount: null,
+          successRate: null,
+          lastTimestamp: null,
+        }));
       } else {
         const counts = middlewareEvents.map((e) => {
           const m = e.message.match(/Inserted\s+(\d+)\s+measurements/i);
@@ -157,7 +170,8 @@ export default function DataOverview({ refreshKey }) {
         let ratePerDay = null;
         if (ingestDays > 0) ratePerDay = total / ingestDays;
 
-        setData({
+        setData((d) => ({
+          ...d,
           total,
           latestCount,
           ratePerDay,
@@ -167,11 +181,10 @@ export default function DataOverview({ refreshKey }) {
           failedCount,
           successRate,
           lastTimestamp: latest.timestamp,
-        });
+        }));
       }
     } catch (e) {
       console.error(e);
-      setData({});
     }
   };
 

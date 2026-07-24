@@ -35,6 +35,76 @@ MODEL_REGISTRY = {
 CONFIG_DIR = os.path.abspath("configuration")
 DATA_DIR = os.path.abspath("data")
 
+# Sensors with no contact for this many days are marked inactive
+SENSOR_INACTIVITY_DAYS = 7
+
+
+def mark_sensors_as_seen(sensor_ids: List[int], db: Session) -> None:
+    """
+    Mark sensors as recently seen by refreshing last_seen and setting status to active.
+    """
+    if not sensor_ids:
+        return
+
+    unique_sensor_ids = list(set(sensor_ids))
+    db.execute(
+        text("""
+            UPDATE sensor
+            SET last_seen = NOW(),
+                status = 'active'
+            WHERE sensor_id = ANY(:sensor_ids)
+        """),
+        {"sensor_ids": unique_sensor_ids},
+    )
+
+
+def deactivate_stale_sensors(db: Session, inactive_after_days: int = SENSOR_INACTIVITY_DAYS) -> int:
+    """
+    Mark active sensors as inactive when they have not been seen recently.
+    Returns:
+        Number of sensors deactivated in this run.
+    """
+    if inactive_after_days <= 0:
+        raise ValueError("inactive_after_days must be a positive integer")
+
+    result = db.execute(
+        text("""
+            UPDATE sensor
+            SET status = 'inactive'
+            WHERE status = 'active'
+              AND last_seen < NOW() - make_interval(days => :inactive_after_days)
+        """),
+        {"inactive_after_days": inactive_after_days},
+    )
+    db.commit()
+
+    deactivated_count = result.rowcount if result.rowcount is not None and result.rowcount >= 0 else 0
+
+    emit_metric(
+        name="middleware",
+        instance_id="default",
+        metric_name="sensors_deactivated",
+        value=deactivated_count,
+        unit="count",
+    )
+    emit_event(
+        name="middleware",
+        instance_id="default",
+        event_type="sensors_deactivated",
+        severity="INFO",
+        message=f"Deactivated {deactivated_count} sensor(s) with last_seen older than {inactive_after_days} day(s)",
+    )
+    logger.info(
+        "Deactivated stale sensors",
+        extra={
+            "deactivated_count": deactivated_count,
+            "inactive_after_days": inactive_after_days,
+        },
+    )
+
+    return deactivated_count
+
+
 def register_entities(payload: RegisterPayload, db: Session) -> Dict[str, Dict[str, int]]:
     """
     Registers nodes and sensors from the payload.
@@ -169,6 +239,7 @@ def register_entities(payload: RegisterPayload, db: Session) -> Dict[str, Dict[s
             ON CONFLICT (node_id, sensor_hash)
             DO UPDATE SET
                 last_seen = NOW(),
+                status = 'active',
                 sensor_label = EXCLUDED.sensor_label
             RETURNING sensor_id
         """)
@@ -276,6 +347,11 @@ def ingest_measurements(payload: dataIngestPayload, db: Session) -> Dict[str, An
             conn.commit()
         finally:
             conn.close()
+        
+        # Mark sensors as seen
+        seen_sensor_ids = [sensor_id for sensor_id, _ts, _value in measurement_buffer]
+        mark_sensors_as_seen(seen_sensor_ids, db)
+
     db.commit()
 
     # TODO: check lenght of buffer
@@ -746,22 +822,35 @@ def get_node(node_id: int, db: Session):
 
     return row
 
-def get_sensors(db: Session):
+def get_sensors(db: Session, status: Optional[str] = None):
     """
-    Fetch all registered sensors with their details.
+    Fetch registered sensors with their details.
+
+    Args:
+        status: If set, only return sensors with this status (e.g. 'active').
+                If None, return all sensors.
     """
     db_healthcheck(db)
 
+    # Filter by status if provided
+    where_sql = "WHERE s.status = :status" if status is not None else ""
+    params = {"status": status} if status is not None else {}
+
     rows = db.execute(
-        text("""
+        text(f"""
             SELECT s.sensor_id, s.sensor_label, ST_AsGeoJSON(s.location) AS location, st.name, s.status AS sensor_status
             FROM sensor s
             JOIN sensor_type st ON s.sensor_type_id = st.sensor_type_id
-        """)
+            {where_sql}
+        """),
+        params,
     ).mappings().fetchall()
 
     if not rows:
-        logger.info("No sensors found in database")
+        logger.info(
+            "No sensors found in database"
+            + (f" with status='{status}'" if status is not None else "")
+        )
 
     return rows
 

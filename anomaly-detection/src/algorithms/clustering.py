@@ -153,8 +153,10 @@ class Clustering(AnomalyDetectionAbstract):
             # Add to memory (timestamp and ftr_vector seperate so it does not
             # ceuse error)
             new_row = {"timestamp": timestamp, "ftr_vector": value}
-            self.memory_dataframe = self.memory_dataframe.append(new_row,
-                                                                 ignore_index=True)
+            self.memory_dataframe = pd.concat(
+                [self.memory_dataframe, pd.DataFrame([new_row])],
+                ignore_index=True
+            )
 
             # Cut if needed
             if(self.samples_for_retrain is not None):
@@ -181,15 +183,16 @@ class Clustering(AnomalyDetectionAbstract):
             path = self.retrain_file
             df.to_csv(path,index=False)
 
-            with open("configuration/" + self.configuration_location) as conf:
-                whole_conf = json.load(conf)
-                if(whole_conf["anomaly_detection_alg"][self.algorithm_indx] == "Combination()"):
-                    whole_conf["anomaly_detection_conf"][self.algorithm_indx]["anomaly_algorithms_configurations"][self.index_in_combination]["train_data"] = path
-                else:
-                    whole_conf["anomaly_detection_conf"][self.algorithm_indx]["train_data"] = path
+            if self.configuration_location:
+                with open("configuration/" + self.configuration_location) as conf:
+                    whole_conf = json.load(conf)
+                    if(whole_conf["anomaly_detection_alg"][self.algorithm_indx] == "Combination()"):
+                        whole_conf["anomaly_detection_conf"][self.algorithm_indx]["anomaly_algorithms_configurations"][self.index_in_combination]["train_data"] = path
+                    else:
+                        whole_conf["anomaly_detection_conf"][self.algorithm_indx]["train_data"] = path
 
-            with open("configuration/" + self.configuration_location, "w") as conf:
-                json.dump(whole_conf, conf)
+                with open("configuration/" + self.configuration_location, "w") as conf:
+                    json.dump(whole_conf, conf)
 
         elif(train_file is not None):
             df = pd.read_csv(train_file, skiprows=0, delimiter=",",

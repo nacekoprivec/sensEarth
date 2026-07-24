@@ -18,14 +18,14 @@ jobs:
   #if_merged:
   #  if: github.event.pull_request.merged == true
   Bootstrap-Deploy:
-    name: 🎉 Bootstrap Deploy
+    name: Bootstrap Deploy
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🚚 Get latest code
+      - name: Get latest code
         uses: actions/checkout@v3
 
-      - name: 📂 Deploy to Server
+      - name: Deploy to Server
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
