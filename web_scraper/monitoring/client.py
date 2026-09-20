@@ -1,17 +1,21 @@
 from psycopg2.extras import Json
 import requests, threading
+from datetime import datetime, timezone
 from typing import Optional
 
 import os
 
 WATCHDOG_URL = os.getenv("MONITORING_API_URL")
 
+def _ts():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
 def _send(path, payload):
     try:
         resp = requests.post(f"{WATCHDOG_URL}{path}", json=payload, timeout=5)
-        print(f"[WatchDog client] Sent {path}, status: {resp.status_code}, response: {resp.text}")
+        print(f"[{_ts()}] [WatchDog client] Sent {path}, status: {resp.status_code}, response: {resp.text}")
     except Exception as e:
-        print(f"[WatchDog client] Failed to send {path}: {e}")
+        print(f"[{_ts()}] [WatchDog client] Failed to send {path}: {e}")
 
 def emit_heartbeat( name: str, instance_id: str, status: str = "OK", metadata: Optional[dict] = None):
     threading.Thread(

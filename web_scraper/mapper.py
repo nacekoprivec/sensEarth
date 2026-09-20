@@ -1,3 +1,6 @@
+from typing import Optional
+
+
 class Mapper:
     """
     Maps extracted records to DB schema based on mapping_config (supports nested dicts).
@@ -54,4 +57,62 @@ class Mapper:
     def map_records(self, records: list[dict]) -> list[dict]:
         return [self.map_record(r) for r in records]
 
+    def required_source_columns(self) -> set[str]:
+        """
+        Mapping strings that must exist as source columns/keys.
+        Skips hardcoded node labels and other constants.
+        """
+        required: set[str] = set()
+
+        node = self.mapping_config.get("node", {})
+        node_serial = node.get("node_serial")
+        if isinstance(node_serial, str):
+            required.add(node_serial)
+
+        for sensor in self.mapping_config.get("sensors", []):
+            for measurement in sensor.get("measurements", []):
+                for field in ("value", "timestamp_utc"):
+                    column = measurement.get(field)
+                    if isinstance(column, str):
+                        required.add(column)
+
+            metadata = sensor.get("metadata", {})
+            if isinstance(metadata, dict):
+                for column in metadata.values():
+                    if isinstance(column, str):
+                        required.add(column)
+
+            for field in ("sensor_label", "longitude", "latitude", "altitude"):
+                column = sensor.get(field)
+                if isinstance(column, str):
+                    required.add(column)
+
+        return required
+
+    def validate_source_columns(
+        self,
+        records: Optional[list[dict]] = None,
+        headers: Optional[list[str]] = None,
+    ) -> None:
+        """
+        Fail fast when mapped source columns are missing from CSV headers/rows.
+        """
+        required = self.required_source_columns()
+        if not required:
+            return
+
+        available: set[str] = set()
+        if headers:
+            available.update(h.strip() for h in headers if h)
+        if records:
+            for row in records:
+                if isinstance(row, dict):
+                    available.update(row.keys())
+
+        missing = sorted(required - available)
+        if missing:
+            raise ValueError(
+                f"Missing required source columns: {missing}. "
+                f"Available columns: {sorted(available)}"
+            )
 

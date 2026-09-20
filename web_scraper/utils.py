@@ -5,13 +5,14 @@ import os
 import json
 
 
-def load_configs(folder="configs", selected=None):
+def load_configs(folder="configs", selected=None, include_csv=False):
     """
-    Loads every .json config pair from specified folder.
-    Files that contain csv in name are excluded.
-    Should be only run by --historic
+    Loads every .json config pair from the given folder.
+
+    include_csv controls format policy:
+      - False (default): skip CSV configs — used by the continuous scraper.
+      - True: keep only CSV configs — used by historic import.
     """
-    
     configs = []
     folder_path = os.path.join(os.path.dirname(__file__), folder)
     for file in os.listdir(folder_path):
@@ -23,11 +24,13 @@ def load_configs(folder="configs", selected=None):
             continue
         with open(os.path.join(folder_path, file), "r") as f:
             data = json.load(f)
-            
-            format_type = data.get("scraper_config", {}).get("format", "").lower()
-            # exclude CSV
-            if format_type != "csv": 
-                configs.append((data["scraper_config"], data["mapping_config"]))
+
+        format_type = data.get("scraper_config", {}).get("format", "").lower()
+        is_csv = format_type == "csv"
+        # Continuous mode wants non-CSV; historic mode wants CSV only.
+        if is_csv != include_csv:
+            continue
+        configs.append((data["scraper_config"], data["mapping_config"]))
 
     return configs
  
@@ -50,6 +53,21 @@ def retry_request(func, retries=5, delay=5, backoff=2, *args, **kwargs):
             time.sleep(current_delay)
             current_delay *= backoff
     raise ConnectionError(f"Failed after {retries} attempts")
+
+
+def request_with_retry(method, url, *, retries=5, delay=3, backoff=2, **kwargs):
+    """
+    HTTP call that retries on connection AND HTTP 5xx errors.
+
+    raise_for_status runs inside the retried function so a 5xx response is
+    retried (HTTPError is a RequestException), not only connection errors.
+    """
+    def _call():
+        response = method(url, **kwargs)
+        response.raise_for_status()
+        return response
+
+    return retry_request(_call, retries=retries, delay=delay, backoff=backoff)
 
 def safe_emit(func, **kwargs):
     try:

@@ -56,6 +56,7 @@ def data_ingest(payload: List[MeasurementPayload], db: Session = Depends(get_db)
     - sensor_hash: str
     - timestamp_utc: str
     - value: str
+    - source: optional provenance tag (default "live")
     """
     logger.info(f"Data ingest endpoint called with payload of length: {len(payload)}")
 
@@ -64,6 +65,39 @@ def data_ingest(payload: List[MeasurementPayload], db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail="Empty payload")
 
     return ingest_measurements(payload, db)
+
+
+@router.get("/measurements/provenance")
+def measurement_provenance(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """
+    Whether sensor_measurement.source exists (needed for historic ingest rollback).
+    """
+    return {
+        "source_column_available": measurement_source_column_exists(db),
+    }
+
+
+@router.get("/measurements/sources")
+def measurement_sources(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+    """
+    List distinct measurement.source values with row counts.
+    Use this to see which provenance tags exist before deleting.
+    """
+    return list_measurement_sources(db)
+
+
+@router.delete("/measurements/by-source")
+def remove_measurements_by_source(
+    payload: DeleteBySourcePayload,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Delete all rows in sensor_measurement that match the exact source tag.
+
+    Example body: {"source": "historic:ARSO_HydroStation_Historic"}
+    """
+    logger.warning(f"Delete-by-source requested for source={payload.source}")
+    return delete_measurements_by_source(payload.source, db)
 
 @router.post("/registerModel")
 def register_model(request: CreateModelPayload, db: Session = Depends(get_db)):
@@ -153,6 +187,9 @@ def list_node(node_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
 def list_sensors(db: Session = Depends(get_db)):
     """
     Display all registered sensors with their details.
+
+    Includes sensor_hash, node_id, sensor_type/unit ranges, metadata,
+    and node_serial (metadata.sifra) for historic ARSO import.
     """
     return get_sensors(db)
 

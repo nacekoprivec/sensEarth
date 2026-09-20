@@ -20,7 +20,7 @@ from extractors.html_extractor import HTMLExtractor
 
 from monitoring.client import emit_component_registration, emit_event, emit_metric, emit_heartbeat
 
-from raw_data.raw_storage import download_raw_data, list_raw_objects, MINIO_INSTANCE_ID
+from raw_data.raw_storage import MINIO_INSTANCE_ID
 
 EXTRACTOR_MAP = {
     "xml": XMLExtractor,
@@ -76,7 +76,10 @@ class Scraper:
     def load_state(self):
         """
         Loads file state. It is located in docker container.
-        Contains pairs of "nodes": { node_hash : node_id}, "sensors": { sensor_hash : sensor_id}}
+        Contains:
+          - nodes: { node_hash: node_id }
+          - sensors: { sensor_hash: sensor_id }
+          - sensor_metadata: { sensor_hash: { ... } }  # last metadata successfully registered
         """
         try:
             if os.path.exists(self.state_file):
@@ -90,15 +93,17 @@ class Scraper:
                 state = {}
             state.setdefault("nodes", {})
             state.setdefault("sensors", {})
+            state.setdefault("sensor_metadata", {})
             return state
         except json.JSONDecodeError as e:
             logger.error(f"Error loading state for {self.name}: {e}")
-            return {"nodes": {}, "sensors": {}}
+            return {"nodes": {}, "sensors": {}, "sensor_metadata": {}}
 
     def register(self, payload: Dict) -> Dict:
         """
         Registers nodes and sensors from the payload using the /register endpoint.
         Returns pairs of "nodes": { node_hash : node_id}, "sensors": { sensor_hash : sensor_id}}
+        On success, also records sensor metadata in state so we do not re-upsert every cycle.
         """
         normalize(payload)
 
@@ -117,6 +122,15 @@ class Scraper:
             data = response.json()
             self.state["nodes"].update(data.get("nodes", {}))
             self.state["sensors"].update(data.get("sensors", {}))
+
+            # Remember metadata that was accepted so later cycles can skip no-op upserts
+            registered_hashes = set(data.get("sensors", {}).keys())
+            for sensor in payload.get("sensors", []):
+                sensor_hash = sensor.get("sensor_hash")
+                metadata = sensor.get("metadata")
+                if sensor_hash in registered_hashes and metadata:
+                    self.state.setdefault("sensor_metadata", {})[sensor_hash] = metadata
+
             self.save_state()
 
             safe_emit(emit_event, name="scraper",instance_id=self.name,event_type="registration_success",severity="INFO",message=f"Registered {len(data.get('nodes', {}))} nodes and {len(data.get('sensors', {}))} sensors")
@@ -128,27 +142,20 @@ class Scraper:
 
     def send_measurements(self, payload: List[Dict]):
         """
-        Sends measurements to the API.
-        Expects payload with sensors and their measurements.
-        Skips unknown sensors and invalid timestamps, normalizes timestamps,
-        and sends valid data to the `/dataIngest` endpoint.
-        Emits metrics for sent and skipped measurements and logs success/failure.
+        Sends measurements to the API by sensor_hash.
+        Middleware resolves hash → sensor_id; skips invalid timestamps only.
         """
         measurements = []
-        skipped = 0 # track skipped sensors
+        skipped_invalid_ts = 0
         for entry in payload:
             for sensor in entry.get("sensors", []):
                 sensor_hash = sensor["sensor_hash"]
-                sensor_id = self.state["sensors"].get(sensor_hash)
-                if not sensor_id:
-                    skipped += 1
-                    logger.warning(f"Skipping unknown sensor {sensor_hash}")
-                    continue
                 for m in sensor.get("measurements", []):
                     try:
                         ts = m["timestamp_utc"]
                         normalized_ts = normalize_timestamp(ts)
                     except ValueError:
+                        skipped_invalid_ts += 1
                         logger.warning(f"Skipping invalid timestamp: {ts}")
                         continue
                     measurements.append({
@@ -169,10 +176,8 @@ class Scraper:
                 )
 
                 safe_emit(emit_event, name="scraper",instance_id=self.name,event_type="data_ingest_success",severity="INFO",message=f"Sent measurements successfully")
-                if len(measurements) > 0:
-                   skipped_rate = (skipped / len(measurements)) * 100
-                else:
-                   skipped_rate = 0
+                total = len(measurements) + skipped_invalid_ts
+                skipped_rate = (skipped_invalid_ts / total) * 100 if total else 0
                 safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="measurements_skipped_rate", value=skipped_rate)
 
                 return response.json()
@@ -217,9 +222,12 @@ class Scraper:
     def unregistered_records(self, records: List[Dict]) -> List[Dict]:
         """
         Identifies records with unregistered nodes/sensors.
-        Returns only dictionaries for nodes/sensors that are not yet registered according to the state.
+        Also re-sends sensors whose metadata differs from what was last
+        successfully registered (e.g. missing metadata.sifra backfill).
         """
         to_register = {"nodes": [], "sensors": []}
+        known_metadata = self.state.get("sensor_metadata", {})
+
         for record in records:
             node = record.get("node")
             if node:
@@ -229,8 +237,16 @@ class Scraper:
 
             for sensor in record.get("sensors", []):
                 sensor_hash = sensor["sensor_hash"]
-                if sensor_hash not in self.state["sensors"]:
-                    sensor_entry = sensor.copy()
+                desired_metadata = sensor.get("metadata") or {}
+                known = known_metadata.get(sensor_hash)
+
+                needs_register = sensor_hash not in self.state["sensors"]
+                needs_metadata_upsert = bool(desired_metadata) and desired_metadata != known
+
+                if needs_register or needs_metadata_upsert:
+                    sensor_entry = {
+                        k: v for k, v in sensor.items() if k != "measurements"
+                    }
                     if node:
                         sensor_entry["node_hash"] = node["node_hash"]
                     to_register["sensors"].append(sensor_entry)
@@ -250,11 +266,18 @@ class Scraper:
             object_name = fetch_result["object_name"]
             safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="fetch_raw_duration_seconds", value=time.time() - loop_start)
 
-            if not is_new: # If minio content is duplicated, skip processing 
+            # Default: skip unchanged MinIO objects. Opt in via process_duplicate_raw
+            # (temporary for ARSO hydro so metadata.sifra can backfill on existing sensors).
+            process_duplicate_raw = bool(self.scraper_config.get("process_duplicate_raw", False))
+            if not is_new and not process_duplicate_raw:
                 logger.info(f"[{self.name}] Duplicate raw skipped: {object_name}")
                 safe_emit(emit_event, name="scraper", instance_id=self.name, event_type="duplicate_raw_skipped",severity="INFO", message=f"Skipped duplicate raw object {object_name}")
                 safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="duplicate_raw_count", value=1)
                 return []
+            if not is_new and process_duplicate_raw:
+                logger.info(f"[{self.name}] Duplicate raw reprocessed (process_duplicate_raw=true): {object_name}")
+                safe_emit(emit_event, name="scraper", instance_id=self.name, event_type="duplicate_raw_reprocessed", severity="INFO", message=f"Reprocessed duplicate raw object {object_name}")
+                safe_emit(emit_metric, name="scraper", instance_id=self.name, metric_name="duplicate_raw_reprocessed_count", value=1)
 
             extracted = self.extractor.extract(raw, self.scraper_config["root_tag"])
             mapped = self.mapper.map_records(extracted)
@@ -268,149 +291,41 @@ class Scraper:
             safe_emit(emit_heartbeat, name="scraper", instance_id=self.name, status="FAIL")
             return []
 
+    def _run_cycle(self):
+        records = self.run_once()
+        records = records[: self.limit_results] if self.limit_results else records
+
+        records = self.enricher.enrich_records(records)
+        records = self.hash_records(records)
+        unregistered = self.unregistered_records(records)
+        self.register(unregistered)
+        self.send_measurements(records)
+
+        logger.info(f"[{self.name}] Total records processed: {len(records)}")
+
     async def run(self):
         while True:
             try:
-                #Scrape and map data
-                records = self.run_once()
-                records = records[: self.limit_results] if self.limit_results else records
-
-                # Hash every record, register unregistered nodes/sensors and send all measurements.
-                records = self.hash_records(records)
-                records = self.enricher.enrich_records(records)
-                unregistered = self.unregistered_records(records)
-                self.register(unregistered)
-                self.send_measurements(records)
-
-                logger.info(f"[{self.name}] Total records processed: {len(records)}")
-
+                # Blocking HTTP (requests) runs in a thread so scrapers overlap
+                await asyncio.to_thread(self._run_cycle)
             except Exception as e:
                 logger.error(f"[{self.name}] Error during scraping: {e}")
                 safe_emit(emit_heartbeat, name="scraper", instance_id=self.name, status="FAIL")
-
 
             if self.fetch_interval <= 0:
                 break
             await asyncio.sleep(self.fetch_interval)
 
-class HistoricScraper(Scraper):
-    async def run_historic(self, file_path: str = "ingest/data.csv"):
-        """Processes a local file once and exits."""
-
-        if self.format.lower() != 'csv': 
-            return
-
-        logger.info(f"Starting historic import for {file_path}")
-
-        with open(file_path, "rb") as f:
-            raw_data = f.read()
-
-        # No fetcher, here.File input only.
-        _delimiter = self.scraper_config.get("root_tag", ";") 
-        extracted = self.extractor.extract(raw_data, _delimiter)
-        mapped = self.mapper.map_records(extracted)
-
-        records = self.hash_records(mapped)
-        records = self.enricher.enrich_records(records)
-        unregistered = self.unregistered_records(records)
-        
-        self.register(unregistered)
-
-        inserted = []
-        chunk_size = 500
-        for i in range(0, len(records), chunk_size):
-            chunk = records[i : i + chunk_size]
-            inserted.append(self.send_measurements(chunk))
-            logger.info(f"Progress: {i + len(chunk)}/{len(records)}")
-        
-        logger.info(f"Historic import completed. {inserted}")
-
-class MinIOReplayScraper(Scraper):
-    async def replay_from_minio(self, prefix: str = "", chunk_size: int = 500):
-        """
-        Reprocess all objects stored in MinIO and reinsert into DB.
-        """
-
-        logger.info(f"[{self.name}] Starting MinIO replay")
-        safe_emit(emit_event, name="minio", instance_id="default", event_type="replay_started", severity="INFO", message=f"MinIO replay started for scraper {self.name}", metadata={"prefix": prefix})
-
-        object_names = list_raw_objects(prefix)
-
-        logger.info(f"[{self.name}] Found {len(object_names)} raw objects")
-        reprocessed = 0
-        failed = 0
-
-        for object_name in object_names:
-            raw = download_raw_data(object_name)
-
-            if not raw:
-                logger.warning(f"Skipping unreadable object {object_name}")
-                failed += 1
-                continue
-            try:
-                extracted = self.extractor.extract(
-                    raw,
-                    self.scraper_config["root_tag"]
-                )
-
-                mapped = self.mapper.map_records(extracted)
-
-                records = self.hash_records(mapped)
-                records = self.enricher.enrich_records(records)
-
-                unregistered = self.unregistered_records(records)
-
-                self.register(unregistered)
-
-                for i in range(0, len(records), chunk_size):
-                    chunk = records[i : i + chunk_size]
-                    self.send_measurements(chunk)
-
-                logger.info(f"Reprocessed {object_name}")
-                reprocessed += 1
-
-            except Exception as e:
-                logger.error(f"Replay failed for {object_name}: {e}")
-                failed += 1
-                safe_emit(emit_event, name="minio", instance_id="default", event_type="replay_object_failed", severity="ERROR", message=f"Replay failed for {object_name}: {e}", metadata={"object_name": object_name})
-
-        safe_emit(emit_metric, name="minio", instance_id="default", metric_name="replay_objects_reprocessed", value=reprocessed, unit="count")
-        safe_emit(emit_metric, name="minio", instance_id="default", metric_name="replay_objects_failed", value=failed, unit="count")
-        safe_emit(emit_event, name="minio", instance_id="default", event_type="replay_completed", severity="INFO", message=f"MinIO replay completed for scraper {self.name}", metadata={"reprocessed": reprocessed, "failed": failed})
-        safe_emit(emit_heartbeat, name="minio", instance_id="default", status="OK" if failed == 0 else "FAIL")
-
 
 async def main():
-    parser = argparse.ArgumentParser(description="Anomaly Detector CLI")
-
+    parser = argparse.ArgumentParser(description="Continuous web scraper")
     parser.add_argument("--config", nargs="*", help="Specify which config(s) to use (none = all)")
-    parser.add_argument("--historic", action="store_true", help="Run historic import")
-    parser.add_argument("--minio_reinsert", action="store_true", help="Replay raw files stored in MinIO")
-
     args = parser.parse_args()
+
     configs = load_configs(selected=args.config)
+    scrapers = [Scraper(scraper_conf, mapping_conf) for scraper_conf, mapping_conf in configs]
+    await asyncio.gather(*(s.run() for s in scrapers))
 
-    if args.historic:
-        tasks = []
-        for scraper_conf, mapping_conf in configs:
-            scraper = HistoricScraper(scraper_conf, mapping_conf)
-            tasks.append(scraper.run_historic())
-
-        await asyncio.gather(*tasks)
-
-    elif args.minio_reinsert:
-        logger.info("Starting MinIO replay for all scrapers")
-        tasks = []
-
-        for scraper_conf, mapping_conf in configs:
-            scraper = MinIOReplayScraper(scraper_conf, mapping_conf)
-            tasks.append(scraper.replay_from_minio(prefix=scraper_conf.get("minio_prefix", "")))
-
-        await asyncio.gather(*tasks)
-        
-    else:
-        scrapers = [Scraper(scraper_conf, mapping_conf) for scraper_conf, mapping_conf in configs]
-        await asyncio.gather(*(s.run() for s in scrapers))
 
 if __name__ == "__main__":
     asyncio.run(main())

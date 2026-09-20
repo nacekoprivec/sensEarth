@@ -156,9 +156,10 @@ flowchart TB
 
 ### Scrapers
 - Scrapers run automatically as part of the `scraper` service.
-- To run historic imports or specific configs, use commands like:
+- To run historic imports, MinIO replay, or specific configs:
   ```
-  docker compose run scraper python scraper.py --historic
+  docker compose run scraper python historic_import.py --file ingest/data.csv
+  docker compose run scraper python minio_replay.py
   docker compose run scraper python scraper.py --config arso_meteo
   ```
 

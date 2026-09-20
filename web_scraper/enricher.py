@@ -75,6 +75,39 @@ def _finite_or_none(number: float):
 _COORD_FIELDS = ("longitude", "latitude", "altitude")
 _NODE_TEXT_FIELDS = ("node_label", "node_serial")
 _SENSOR_TEXT_FIELDS = ("sensor_label", "sensor_name", "sensor_description")
+# Mapper falls back to the config key name when the source field is missing
+_METADATA_IDENTITY_KEYS = ("sifra",)
+
+
+def normalize_sifra(value):
+    """
+    Normalize ARSO station id (sifra) for metadata and archive URLs.
+
+    Integer-like values become digit strings (9275.0 -> "9275").
+    """
+    if value is None or isinstance(value, bool):
+        return None
+
+    if isinstance(value, int):
+        return str(value)
+
+    if isinstance(value, float):
+        if not value.is_integer():
+            return str(value).strip()
+        return str(int(value))
+
+    text_value = clean_placeholder(str(value))
+    if text_value is None or text_value == "sifra":
+        return None
+
+    try:
+        as_float = float(text_value)
+        if as_float.is_integer():
+            return str(int(as_float))
+    except ValueError:
+        pass
+
+    return text_value
 
 
 class Enricher:
@@ -99,10 +132,55 @@ class Enricher:
         if entity.get("altitude") is None:
             entity["altitude"] = 0.0
 
+    def clean_metadata(self, sensor: dict) -> None:
+        """
+        Normalize sensor.metadata for register.
+
+        - Drop empty / placeholder sifra values (mapper may return the key name)
+        - Coerce sifra to a stripped string
+        - Remove metadata entirely when empty after cleanup
+        """
+        metadata = sensor.get("metadata")
+        if not isinstance(metadata, dict):
+            sensor.pop("metadata", None)
+            return
+
+        cleaned = {}
+        for key, value in metadata.items():
+            if key in _METADATA_IDENTITY_KEYS:
+                normalized = normalize_sifra(value)
+                if normalized is None:
+                    continue
+                cleaned[key] = normalized
+            else:
+                cleaned[key] = value
+
+        if cleaned:
+            sensor["metadata"] = cleaned
+        else:
+            sensor.pop("metadata", None)
+
     def clean_node(self, node: dict) -> None:
         self.clean_text_fields(node, _NODE_TEXT_FIELDS)
+        self.clean_node_serial(node)
         self.clean_coords(node)
         self.default_altitude(node)
+
+    def clean_node_serial(self, node: dict) -> None:
+        """
+        Normalize node_serial before hashing.
+
+        Mapper returns the literal key name when the source field is missing.
+        """
+        if "node_serial" not in node:
+            return
+
+        raw = node.get("node_serial")
+        if isinstance(raw, str) and raw.strip() == "sifra":
+            node["node_serial"] = None
+            return
+
+        node["node_serial"] = normalize_sifra(raw)
 
     def clean_measurements(self, sensor: dict) -> None:
         """
@@ -124,6 +202,7 @@ class Enricher:
         self.clean_text_fields(sensor, _SENSOR_TEXT_FIELDS)
         self.clean_coords(sensor)
         self.default_altitude(sensor)
+        self.clean_metadata(sensor)
         self.clean_measurements(sensor)
 
     def enrich_record(self, record: dict) -> dict:

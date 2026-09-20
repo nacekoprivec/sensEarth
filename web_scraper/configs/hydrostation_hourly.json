@@ -6,74 +6,84 @@
     "fetch_interval": 3600,
     "format": "xml",
     "root_tag": "postaja",
+    "process_duplicate_raw": true,
     "node_hash_fields": ["node_label", "node_serial", "longitude", "latitude", "altitude"],
     "sensor_hash_fields": ["node_hash", "sensor_name", "longitude", "latitude", "altitude"]
   },
 
   "mapping_config": {
-    "node": {
-      "node_label": "ARSO_Hydro_Station",
-      "node_serial": "sifra",
+  "node": {
+    "node_label": "ARSO_Hydro_Station",
+    "node_serial": "sifra",
+    "longitude": "wgs84_dolzina",
+    "latitude": "wgs84_sirina",
+    "altitude": "kota_0"
+  },
+
+  "sensors": [
+    {
+      "sensor_label": "ime_kratko",
+      "sensor_name": "ARSO Water Level Sensor",
       "longitude": "wgs84_dolzina",
       "latitude": "wgs84_sirina",
-      "altitude": "kota_0"
-    },
-
-    "sensors": [
-      {
-        "sensor_label": "ime_kratko",
-        "sensor_name": "ARSO Water Level Sensor",
-        "longitude": "wgs84_dolzina",
-        "latitude": "wgs84_sirina",
-        "altitude": "kota_0",
-        "sensor_description": "Water level sensor data from ARSO",
-        "measurements": [
-          {"value": "vodostaj", "timestamp_utc": "datum"}
-        ],
-        "sensor_type": {
-          "name": "water_level",
-          "phenomenon": "Water Level",
-          "unit": "m",
-          "value_min": 0,
-          "value_max": 1000
-        }
+      "altitude": "kota_0",
+      "sensor_description": "Water level sensor data from ARSO",
+      "metadata": {
+        "sifra": "sifra"
       },
-      {
-        "sensor_label": "ime_kratko",
-        "sensor_name": "ARSO Water Temperature Sensor",
-        "longitude": "wgs84_dolzina",
-        "latitude": "wgs84_sirina",
-        "altitude": "kota_0",
-        "sensor_description": "Water temperature sensor data from ARSO",
-        "measurements": [
-          {"value": "temp_vode", "timestamp_utc": "datum"}
-        ],
-        "sensor_type": {
-          "name": "water_temperature",
-          "phenomenon": "Water Temperature",
-          "unit": "°C",
-          "value_min": 0,
-          "value_max": 100
-        }
-      },
-      {
-        "sensor_label": "ime_kratko",
-        "sensor_name": "ARSO Water Flow Sensor",
-        "longitude": "wgs84_dolzina",
-        "latitude": "wgs84_sirina",
-        "altitude": "kota_0",
-        "sensor_description": "Water flow sensor data from ARSO",
-        "measurements": [
-          {"value": "pretok", "timestamp_utc": "datum"}
-        ],
-        "sensor_type": {
-          "name": "water_flow",
-          "phenomenon": "Water Flow",
-          "unit": "m^3/s",
-          "value_min": 0,
-          "value_max": 100
-        }
+      "measurements": [
+        {"value": "vodostaj", "timestamp_utc": "datum"}
+      ],
+      "sensor_type": {
+        "name": "water_level",
+        "phenomenon": "Water Level",
+        "unit": "m",
+        "value_min": 0,
+        "value_max": 1000
       }
-    ]
+    },
+    {
+      "sensor_label": "ime_kratko",
+      "sensor_name": "ARSO Water Temperature Sensor",
+      "longitude": "wgs84_dolzina",
+      "latitude": "wgs84_sirina",
+      "altitude": "kota_0",
+      "sensor_description": "Water temperature sensor data from ARSO",
+      "metadata": {
+        "sifra": "sifra"
+      },
+      "measurements": [
+        {"value": "temp_vode", "timestamp_utc": "datum"}
+      ],
+      "sensor_type": {
+        "name": "water_temperature",
+        "phenomenon": "Water Temperature",
+        "unit": "°C",
+        "value_min": 0,
+        "value_max": 100
+      }
+    },
+    {
+      "sensor_label": "ime_kratko",
+      "sensor_name": "ARSO Water Flow Sensor",
+      "longitude": "wgs84_dolzina",
+      "latitude": "wgs84_sirina",
+      "altitude": "kota_0",
+      "sensor_description": "Water flow sensor data from ARSO",
+      "metadata": {
+        "sifra": "sifra"
+      },
+      "measurements": [
+        {"value": "pretok", "timestamp_utc": "datum"}
+      ],
+      "sensor_type": {
+        "name": "water_flow",
+        "phenomenon": "Water Flow",
+        "unit": "m^3/s",
+        "value_min": 0,
+        "value_max": 100
+      }
+    }
+  ]
 }
 }

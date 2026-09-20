@@ -94,10 +94,16 @@ Each scraper uses a JSON config file in `configs/`. Example:
 
 Run with Docker Compose:
 
-- **Normal scraping**: `docker compose run scraper python scraper.py --config`
-- **Historic import**: `docker compose run scraper python scraper.py --historic`
-- **Replay MinIO data**: `docker compose run scraper python scraper.py --minio_reinsert`
+- **Normal scraping**: `docker compose run scraper python scraper.py`
 - **Specific configs**: `docker compose run scraper python scraper.py --config config1 config2`
+- **Historic CSV import**: `docker compose run scraper python historic_import.py --file ingest/data.csv`
+- **ARSO historic (known sifra sensors)**:
+  - Dry-run: `docker compose run scraper python arso_historic_import.py --dry-run --sifra 9275 --from 1994 --to 1994`
+  - Ingest: `docker compose run scraper python arso_historic_import.py --ingest --sifra 9275 --from 1994 --to 1994`
+- **Replay MinIO data**: `docker compose run scraper python minio_replay.py`
+
+Historic and MinIO replay are separate entrypoints — they are not flags on `scraper.py`.
+`arso_historic_import.py` only targets existing sensors with `metadata.sifra` (no `/register`).
 
 ## Directory Structure
 
@@ -106,9 +112,13 @@ web_scraper/
 |- configs/             # JSON scraper configurations
 |- extractors/          # Format-specific extractors (XML, JSON, CSV, HTML)
 |- fetcher.py           # Fetches raw data
-|- enricher.py          # Cleanes and enriches data 
+|- enricher.py          # Cleans and enriches data
 |- mapper.py            # Maps data to nodes/sensors
-|- scraper.py           # Main scraper script
+|- scraper.py           # Continuous scraper loop
+|- historic_import.py   # One-shot historic CSV import (generic file + config)
+|- arso_historic_import.py  # One-shot ARSO archive → known sifra sensors
+|- arso_historic/       # ARSO historic helpers (fetch/parse/guards)
+|- minio_replay.py      # One-shot MinIO raw-object replay
 |- state/               # Persistent state files (auto-generated)
 |- README.md
 ```

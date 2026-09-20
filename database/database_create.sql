@@ -64,8 +64,12 @@ CREATE TABLE IF NOT EXISTS sensor_measurement (
     sensor_id INT REFERENCES sensor(sensor_id) ON DELETE CASCADE,
     timestamp_utc TIMESTAMPTZ NOT NULL,
     value DOUBLE PRECISION NOT NULL,
+    source VARCHAR(64) NOT NULL DEFAULT 'live',
     PRIMARY KEY(sensor_id, timestamp_utc)
 );
+
+CREATE INDEX IF NOT EXISTS idx_sensor_measurement_source
+    ON sensor_measurement (source);
 
 -- ===============================
 -- 6. Convert sensor_measurement to Timescale hypertable
@@ -73,7 +77,7 @@ CREATE TABLE IF NOT EXISTS sensor_measurement (
 SELECT create_hypertable(
     'sensor_measurement',
     'timestamp_utc',
-    chunk_time_interval => INTERVAL '7 day' --- Added later, previously set to 1 ady
+    chunk_time_interval => INTERVAL '7 day'
 );
 
 -- ===============================

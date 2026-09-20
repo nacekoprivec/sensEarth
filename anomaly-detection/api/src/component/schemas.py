@@ -26,6 +26,8 @@ class SensorPayload(BaseModel):
     latitude: Optional[float]
     altitude: Optional[float]
     sensor_description: Optional[str] = ""
+    # Merge-only on upsert; send null for a key to remove it, e.g. {"sifra": null}
+    metadata: Optional[Dict[str, Any]] = None
 
 class RegisterPayload(BaseModel):
     nodes: List[NodePayload]
@@ -35,6 +37,10 @@ class MeasurementPayload(BaseModel):
     sensor_hash: str
     timestamp_utc: str  
     value: Optional[str]
+    source: Optional[str] = "live"
+
+class DeleteBySourcePayload(BaseModel):
+    source: str
 
 class dataIngestPayload(BaseModel):
     measurements: List[MeasurementPayload]

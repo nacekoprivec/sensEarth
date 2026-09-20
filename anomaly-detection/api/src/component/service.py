@@ -111,7 +111,9 @@ def register_entities(payload: RegisterPayload, db: Session) -> Dict[str, Dict[s
     Returns:
     {
         "nodes": {node_hash1: node_id1, ...},
-        "sensors": {sensor_hash1: sensor_id1, ...}
+        "sensors": {sensor_hash1: sensor_id1, ...},
+        "failed_nodes": [{node_hash, error}, ...],   # present when non-empty
+        "failed_sensors": [{sensor_hash, error}, ...],
     }
     """
 
@@ -128,7 +130,9 @@ def register_entities(payload: RegisterPayload, db: Session) -> Dict[str, Dict[s
     logger.info("Register endpoint called", extra={"nodes": len(payload.nodes), "sensors": len(payload.sensors)})
 
     node_map = {}          
-    sensor_map = {}        
+    sensor_map = {}
+    failed_nodes = []
+    failed_sensors = []
 
     # =========================
     # REGISTER NODES
@@ -153,139 +157,174 @@ def register_entities(payload: RegisterPayload, db: Session) -> Dict[str, Dict[s
         """)
 
         try:
-            node_id = db.execute(
-                q_node,
-                {
-                    "label": node_label,
-                    "hash": node_hash,
-                    "desc": node_description,
-                    **loc_params
-                }
-            ).fetchone()[0]
-
-        except IntegrityError as e:
+            with db.begin_nested():
+                node_id = db.execute(
+                    q_node,
+                    {
+                        "label": node_label,
+                        "hash": node_hash,
+                        "desc": node_description,
+                        **loc_params
+                    }
+                ).fetchone()[0]
+            node_map[node_hash] = node_id
+        except Exception as e:
+            failed_nodes.append({"node_hash": node_hash, "error": str(e)})
+            logger.error(f"Register node failed for {node_hash}: {e}")
             emit_event(
                 name="middleware",
                 instance_id="default",
                 event_type="register_node_failed",
                 severity="ERROR",
                 message=str(e),
-                metadata={"node_hash": node_data.node_hash}
+                metadata={"node_hash": node_hash},
             )
-
-            raise HTTPException(
-                status_code=409,
-                detail=f"Node conflict: node_hash: '{node_hash}' already exists"
-            )
-
-        node_map[node_hash] = node_id
 
     # =========================
     # REGISTER SENSORS
     # =========================
     for sensor_data in payload.sensors:
-        # Use dot notation for Pydantic attributes
         sensor_label = sensor_data.sensor_label
         sensor_hash = sensor_data.sensor_hash
         node_hash = sensor_data.node_hash
         sensor_description = sensor_data.sensor_description
-
-        node_id = node_map.get(node_hash)
-        if node_id is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown node_hash '{node_hash}' for sensor '{sensor_label}'"
-            )
-
-        # -------------------------
-        # SENSOR LOCATION
-        # -------------------------
-        longitude = sensor_data.longitude
-        latitude = sensor_data.latitude
-        altitude = sensor_data.altitude
-
-        loc_sql, loc_params = create_location_params(longitude, latitude, altitude)
-
-        # -------------------------
-        # SENSOR TYPE UPSERT
-        # -------------------------
-        stype = sensor_data.sensor_type 
-        q_type = text("""
-            INSERT INTO sensor_type (name, phenomenon, unit, value_min, value_max)
-            VALUES (:name, :phenomenon, :unit, :min, :max)
-            ON CONFLICT (name)
-            DO UPDATE SET
-                name = EXCLUDED.name
-            RETURNING sensor_type_id
-        """)
-
-        sensor_type_id = db.execute(
-            q_type,
-            {
-                "name": stype.name,
-                "phenomenon": stype.phenomenon,
-                "unit": stype.unit,
-                "min": stype.value_min,
-                "max": stype.value_max,
-            }
-        ).fetchone()[0]
-
-        # -------------------------
-        # SENSOR INSERT
-        # -------------------------
-        q_sensor = text(f"""
-            INSERT INTO sensor (node_id, sensor_type_id, sensor_hash, sensor_label, location, description, last_seen)
-            VALUES (:node_id, :stype_id, :hash, :label, {loc_sql}, :desc, NOW())
-            ON CONFLICT (node_id, sensor_hash)
-            DO UPDATE SET
-                last_seen = NOW(),
-                status = 'active',
-                sensor_label = EXCLUDED.sensor_label
-            RETURNING sensor_id
-        """)
+        sensor_metadata = sensor_data.metadata
 
         try:
-            sensor_id = db.execute(
-                q_sensor,
-                {
-                    "node_id": node_id,
-                    "stype_id": sensor_type_id,
-                    "hash": sensor_hash,
-                    "label": sensor_label,
-                    "desc": sensor_description,
-                    **loc_params
-                }
-            ).fetchone()[0]
+            with db.begin_nested():
+                node_id = node_map.get(node_hash)
+                if node_id is None:
+                    # Node may already exist from a prior register call
+                    existing_node = db.execute(
+                        text("SELECT node_id FROM sensor_node WHERE node_hash = :hash"),
+                        {"hash": node_hash},
+                    ).fetchone()
+                    if existing_node is None:
+                        raise ValueError(
+                            f"Unknown node_hash '{node_hash}' for sensor '{sensor_label}'"
+                        )
+                    node_id = existing_node[0]
+                    node_map[node_hash] = node_id
 
-        except IntegrityError as e:
+                longitude = sensor_data.longitude
+                latitude = sensor_data.latitude
+                altitude = sensor_data.altitude
+
+                loc_sql, loc_params = create_location_params(longitude, latitude, altitude)
+
+                stype = sensor_data.sensor_type
+                q_type = text("""
+                    INSERT INTO sensor_type (name, phenomenon, unit, value_min, value_max)
+                    VALUES (:name, :phenomenon, :unit, :min, :max)
+                    ON CONFLICT (name)
+                    DO UPDATE SET
+                        name = EXCLUDED.name
+                    RETURNING sensor_type_id
+                """)
+
+                sensor_type_id = db.execute(
+                    q_type,
+                    {
+                        "name": stype.name,
+                        "phenomenon": stype.phenomenon,
+                        "unit": stype.unit,
+                        "min": stype.value_min,
+                        "max": stype.value_max,
+                    }
+                ).fetchone()[0]
+
+                merge_metadata, remove_metadata_keys = prepare_sensor_metadata_for_upsert(
+                    sensor_metadata
+                )
+
+                q_sensor = text(f"""
+                    INSERT INTO sensor (
+                        node_id, sensor_type_id, sensor_hash, sensor_label,
+                        location, description, metadata, last_seen
+                    )
+                    VALUES (
+                        :node_id, :stype_id, :hash, :label,
+                        {loc_sql}, :desc,
+                        CASE
+                            WHEN :apply_metadata THEN CAST(:metadata_merge AS jsonb)
+                            ELSE NULL
+                        END,
+                        NOW()
+                    )
+                    ON CONFLICT (sensor_hash)
+                    DO UPDATE SET
+                        node_id = EXCLUDED.node_id,
+                        sensor_type_id = EXCLUDED.sensor_type_id,
+                        last_seen = NOW(),
+                        status = 'active',
+                        sensor_label = EXCLUDED.sensor_label,
+                        metadata = CASE
+                            WHEN NOT :apply_metadata THEN sensor.metadata
+                            ELSE (
+                                COALESCE(sensor.metadata, '{{}}'::jsonb)
+                                || COALESCE(CAST(:metadata_merge AS jsonb), '{{}}'::jsonb)
+                            ) - COALESCE(:metadata_remove, ARRAY[]::text[])
+                        END
+                    RETURNING sensor_id
+                """)
+
+                sensor_id = db.execute(
+                    q_sensor,
+                    {
+                        "node_id": node_id,
+                        "stype_id": sensor_type_id,
+                        "hash": sensor_hash,
+                        "label": sensor_label,
+                        "desc": sensor_description,
+                        "apply_metadata": merge_metadata is not None,
+                        "metadata_merge": json.dumps(merge_metadata)
+                        if merge_metadata is not None
+                        else None,
+                        "metadata_remove": remove_metadata_keys,
+                        **loc_params
+                    }
+                ).fetchone()[0]
+
+            sensor_map[sensor_hash] = sensor_id
+        except Exception as e:
+            failed_sensors.append({"sensor_hash": sensor_hash, "error": str(e)})
+            logger.error(f"Register sensor failed for {sensor_hash}: {e}")
             emit_event(
                 name="middleware",
                 instance_id="default",
                 event_type="register_sensor_failed",
                 severity="ERROR",
                 message=str(e),
-                metadata={"sensor_hash": sensor_data.sensor_hash}
+                metadata={"sensor_hash": sensor_hash},
             )
-
-            raise HTTPException(
-                status_code=409,
-                detail=f"Sensor conflict: sensor_hash '{sensor_hash}' already exists"
-            )
-
-        sensor_map[sensor_hash] = sensor_id
 
     emit_metric(name="middleware", instance_id="default", metric_name="registered_nodes", value=len(node_map), unit="count")
     emit_metric(name="middleware", instance_id="default", metric_name="registered_sensors", value=len(sensor_map), unit="count")
+    if failed_nodes:
+        emit_metric(name="middleware", instance_id="default", metric_name="register_nodes_failed", value=len(failed_nodes), unit="count")
+    if failed_sensors:
+        emit_metric(name="middleware", instance_id="default", metric_name="register_sensors_failed", value=len(failed_sensors), unit="count")
 
     db.commit()
-    return {"nodes": node_map, "sensors": sensor_map}
+
+    result = {"nodes": node_map, "sensors": sensor_map}
+    if failed_nodes:
+        result["failed_nodes"] = failed_nodes
+    if failed_sensors:
+        result["failed_sensors"] = failed_sensors
+    return result
         
 def ingest_measurements(payload: dataIngestPayload, db: Session) -> Dict[str, Any]:
     """
-    Ingests measurement data for sensors. Each entry in the payload must include 'sensor_hash', 'timestamp_utc', and 'value'.
+    Ingests measurement data for sensors.
+
+    Each entry must include sensor_hash, timestamp_utc, and value.
+    Optional source provenance tag defaults to "live".
     """
     emit_heartbeat(name="middleware", instance_id="default", status="OK")
-    db_healthcheck(db) 
+    db_healthcheck(db)
+
+    has_source_column = measurement_source_column_exists(db)
 
     measurement_buffer = []
 
@@ -293,10 +332,26 @@ def ingest_measurements(payload: dataIngestPayload, db: Session) -> Dict[str, An
         measurement.sensor_hash
         for measurement in payload
     ]
-    
+
     if None in sensor_hashes:
         raise HTTPException(status_code=400, detail="All entries must include 'sensor_hash'")
 
+    # Historic / non-live provenance requires the migrated source column
+    non_live_sources = [
+        (getattr(m, "source", None) or "live")
+        for m in payload
+        if (getattr(m, "source", None) or "live") != "live"
+    ]
+    if non_live_sources and not has_source_column:
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "sensor_measurement.source column is not available; "
+                "run database/migrations/add_measurement_source.sql before historic ingest"
+            ),
+        )
+
+    hash_to_id = {}
     if sensor_hashes:
         rows = db.execute(
             text("SELECT sensor_hash, sensor_id FROM sensor WHERE sensor_hash = ANY(:hashes)"),
@@ -309,6 +364,7 @@ def ingest_measurements(payload: dataIngestPayload, db: Session) -> Dict[str, An
         sensor_hash = measurement.sensor_hash
         ts = measurement.timestamp_utc
         value = measurement.value
+        source = (getattr(measurement, "source", None) or "live").strip() or "live"
 
         sensor_id_db = hash_to_id.get(sensor_hash)
         if sensor_id_db is None:
@@ -317,7 +373,10 @@ def ingest_measurements(payload: dataIngestPayload, db: Session) -> Dict[str, An
             continue
         try:
             val = float(value)
-            measurement_buffer.append((sensor_id_db, ts, val))
+            if has_source_column:
+                measurement_buffer.append((sensor_id_db, ts, val, source))
+            else:
+                measurement_buffer.append((sensor_id_db, ts, val))
         except (TypeError, ValueError):
             logger.warning(f"Skipping invalid measurement: {measurement}")
             continue
@@ -330,31 +389,43 @@ def ingest_measurements(payload: dataIngestPayload, db: Session) -> Dict[str, An
         unit="count"
     )
 
-    if measurement_buffer:  
+    if measurement_buffer:
         conn = db.get_bind().raw_connection()  # get psycopg2 connection
         try:
             with conn.cursor() as cur:
-                execute_values(
-                    cur,
-                    """
-                    INSERT INTO sensor_measurement (sensor_id, timestamp_utc, value)
-                    VALUES %s
-                    ON CONFLICT (sensor_id, timestamp_utc)
-                    DO UPDATE SET value = EXCLUDED.value
-                    """,
-                    measurement_buffer
-                )
+                if has_source_column:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO sensor_measurement (sensor_id, timestamp_utc, value, source)
+                        VALUES %s
+                        ON CONFLICT (sensor_id, timestamp_utc)
+                        DO UPDATE SET
+                            value = EXCLUDED.value,
+                            source = EXCLUDED.source
+                        """,
+                        measurement_buffer
+                    )
+                else:
+                    execute_values(
+                        cur,
+                        """
+                        INSERT INTO sensor_measurement (sensor_id, timestamp_utc, value)
+                        VALUES %s
+                        ON CONFLICT (sensor_id, timestamp_utc)
+                        DO UPDATE SET value = EXCLUDED.value
+                        """,
+                        measurement_buffer
+                    )
             conn.commit()
         finally:
             conn.close()
-        
-        # Mark sensors as seen
-        seen_sensor_ids = [sensor_id for sensor_id, _ts, _value in measurement_buffer]
+
+        seen_sensor_ids = [row[0] for row in measurement_buffer]
         mark_sensors_as_seen(seen_sensor_ids, db)
 
     db.commit()
 
-    # TODO: check lenght of buffer
     emit_metric(
         name="middleware",
         instance_id="default",
@@ -371,7 +442,73 @@ def ingest_measurements(payload: dataIngestPayload, db: Session) -> Dict[str, An
         message=f"Inserted {len(measurement_buffer)} measurements",
     )
 
-    return {"status": "ok", "inserted_measurements": len(measurement_buffer)}
+    return {
+        "status": "ok",
+        "inserted_measurements": len(measurement_buffer),
+        "source_column_available": has_source_column,
+    }
+
+
+def measurement_source_column_exists(db: Session) -> bool:
+    row = db.execute(
+        text("""
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'sensor_measurement'
+              AND column_name = 'source'
+        """)
+    ).fetchone()
+    return row is not None
+
+
+def list_measurement_sources(db: Session) -> List[Dict[str, Any]]:
+    """
+    List distinct sensor_measurement.source values with row counts.
+    Returns an empty list when the source column has not been migrated yet.
+    """
+    db_healthcheck(db)
+
+    if not measurement_source_column_exists(db):
+        return []
+
+    rows = db.execute(
+        text("""
+            SELECT source, COUNT(*)::bigint AS count
+            FROM sensor_measurement
+            GROUP BY source
+            ORDER BY source
+        """)
+    ).mappings().all()
+
+    return [dict(row) for row in rows]
+
+
+def delete_measurements_by_source(source: str, db: Session) -> Dict[str, Any]:
+    """
+    Delete all sensor_measurement rows that match the exact source tag.
+    """
+    db_healthcheck(db)
+
+    source = (source or "").strip()
+    if not source:
+        raise HTTPException(status_code=400, detail="source is required")
+
+    if not measurement_source_column_exists(db):
+        raise HTTPException(
+            status_code=501,
+            detail="sensor_measurement.source column is not available; run the database migration first",
+        )
+
+    result = db.execute(
+        text("DELETE FROM sensor_measurement WHERE source = :source"),
+        {"source": source},
+    )
+    db.commit()
+
+    deleted = result.rowcount if result.rowcount is not None and result.rowcount >= 0 else 0
+    return {"status": "ok", "source": source, "deleted": deleted}
+
 
 def create_model(payload: CreateModelPayload, db: Session):
     """
@@ -583,15 +720,17 @@ async def model_results(payload: Dict, MODEL_REGISTRY: Dict[str, Any], db: Sessi
         )
 
         model_instance.data = []
+        # Most recent window first, then reverse so models get oldest → newest
         sensor_data = db.execute(
             text("""
                 SELECT timestamp_utc, value FROM sensor_measurement
                 WHERE sensor_id = :sensor_id
-                ORDER BY timestamp_utc ASC
+                ORDER BY timestamp_utc DESC
                 LIMIT :limit
             """),
             {"sensor_id": sensor_id, "limit": sliding_window_size}
         ).fetchall()
+        sensor_data = list(reversed(sensor_data))
 
         model_instance.data_ingestion(sensor_data)
 
@@ -829,6 +968,11 @@ def get_sensors(db: Session, status: Optional[str] = None):
     Args:
         status: If set, only return sensors with this status (e.g. 'active').
                 If None, return all sensors.
+
+    Returns fields used by the dashboard and historic import:
+    sensor_id, sensor_label, location, sensor_status (existing),
+    plus sensor_hash, node_id, sensor_type, unit, value_min, value_max,
+    metadata, and node_serial (metadata.sifra when present).
     """
     db_healthcheck(db)
 
@@ -838,7 +982,20 @@ def get_sensors(db: Session, status: Optional[str] = None):
 
     rows = db.execute(
         text(f"""
-            SELECT s.sensor_id, s.sensor_label, ST_AsGeoJSON(s.location) AS location, st.name, s.status AS sensor_status
+            SELECT
+                s.sensor_id,
+                s.sensor_label,
+                s.sensor_hash,
+                s.node_id,
+                ST_AsGeoJSON(s.location) AS location,
+                s.status AS sensor_status,
+                s.metadata,
+                s.metadata->>'sifra' AS node_serial,
+                st.name AS name,
+                st.name AS sensor_type,
+                st.unit,
+                st.value_min,
+                st.value_max
             FROM sensor s
             JOIN sensor_type st ON s.sensor_type_id = st.sensor_type_id
             {where_sql}

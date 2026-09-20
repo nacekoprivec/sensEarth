@@ -39,8 +39,11 @@ Stores:
 - sensor_id
 - timestamp (UTC)
 - value
+- source (provenance; default `live`; historic uses e.g. `historic:arso:<sifra>`)
 
 Stored in a **TimescaleDB hypertable** for performance.
+
+Existing DBs: apply `migrations/add_measurement_source.sql` before historic ingest.
 
 ---
 
