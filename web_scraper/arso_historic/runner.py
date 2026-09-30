@@ -128,7 +128,6 @@ def process_station(
         "source": source,
     }
 
-
 def send_measurement_chunks(
     api_url: str,
     measurements: List[Dict[str, Any]],
@@ -143,7 +142,6 @@ def send_measurement_chunks(
     was written. Partial success is possible on mid-run failure; roll back
     with DELETE /measurements/by-source (Fix 14).
     """
-    # Fix 15: guard invalid chunk size for direct run() callers (CLI also checks)
     if chunk_size < 1:
         raise ValueError("chunk_size must be >= 1")
 
@@ -168,7 +166,6 @@ def send_measurement_chunks(
             f"[arso_historic] ingested {i + len(chunk)}/{len(measurements)} → {body}"
         )
 
-        # Fix 16: optional throttle between chunks for bulk runs
         if chunk_delay_s > 0:
             time.sleep(chunk_delay_s)
 
@@ -201,7 +198,6 @@ def run(
 
     sensors = fetch_sensors(api, active_only=active_only)
 
-    # Fix 19: filter to the requested station BEFORE grouping so an ambiguous
     # (conflicting) sensor at some *other* sifra cannot abort a single-station run.
     if sifra:
         sifra = str(sifra).strip()
@@ -215,7 +211,7 @@ def run(
             )
 
     # Single-station runs are strict (loud on ambiguity); bulk runs skip
-    # conflicted stations and keep going (Fix 8 / sensors.strict).
+    # conflicted stations and keep going (sensors.strict).
     grouped = group_sensors_by_sifra(sensors, strict=bool(sifra))
     if sifra:
         if sifra not in grouped:
@@ -241,7 +237,7 @@ def run(
                 by_type,
                 year_from,
                 year_to,
-                include_measurements=not dry_run,  # Fix 7/23
+                include_measurements=not dry_run, 
             )
             reports.append({k: v for k, v in report.items() if k != "measurements"})
             totals["ready"] += report["stats"]["ready_to_ingest"]
@@ -260,7 +256,7 @@ def run(
                 _, inserted = send_measurement_chunks(
                     api, report["measurements"], chunk_size=chunk_size
                 )
-                totals["ingested"] += inserted  # Fix 21: API-reported count
+                totals["ingested"] += inserted  
 
         # Fix 20: known failures fail just this station; unexpected errors are
         # logged with traceback (still isolated, not silently swallowed).

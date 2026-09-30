@@ -37,7 +37,7 @@
       "sensor_type": {
         "name": "water_level",
         "phenomenon": "Water Level",
-        "unit": "m",
+        "unit": "cm",
         "value_min": 0,
         "value_max": 1000
       }

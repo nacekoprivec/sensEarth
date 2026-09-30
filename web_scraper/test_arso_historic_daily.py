@@ -52,7 +52,10 @@ def test_parse_date_keeps_calendar_day():
     assert parse_date_to_utc_midnight("01.01.1994") == "1994-01-01 00:00:00"
 
 
-def test_parse_daily_csv_with_unit_conversion():
+def test_parse_daily_csv_blocks_water_level_cm_to_m():
+    # water_level registered as "m" but archive column is cm: converting would
+    # disagree with live cm-scale XML, so water_level is blocked while flow is
+    # still ingested.
     sensors = {
         "water_level": {
             "sensor_hash": "hash_level",
@@ -71,15 +74,14 @@ def test_parse_daily_csv_with_unit_conversion():
     }
     result = parse_daily_csv(SAMPLE_CSV, sensors)
     assert result["stats"]["skipped_empty"] >= 1
-    assert result["stats"]["kept"] == 4  # 2 days × 2 sensors with values
+    assert result["stats"]["kept"] == 2  # flow only; water_level blocked
+    assert result["stats"]["skipped_blocked_unit"] >= 1
 
     level_vals = [
         m["value"] for m in result["measurements"] if m["sensor_type"] == "water_level"
     ]
-    assert abs(level_vals[0] - 0.76) < 1e-9  # 76 cm → 0.76 m
-    assert any("cm → m" in w or "cm" in w for w in result["warnings"]) or result[
-        "conversions"
-    ].get("water_level")
+    assert level_vals == []  # water_level blocked, nothing ingested
+    assert any("BLOCKED water_level" in w for w in result["warnings"])
 
 
 def test_parse_daily_csv_no_convert_when_unit_cm():
@@ -106,6 +108,6 @@ if __name__ == "__main__":
     test_conversion_requires_registered_unit()
     test_conversion_requires_archive_unit()
     test_parse_date_keeps_calendar_day()
-    test_parse_daily_csv_with_unit_conversion()
+    test_parse_daily_csv_blocks_water_level_cm_to_m()
     test_parse_daily_csv_no_convert_when_unit_cm()
     print("ok")

@@ -7,6 +7,20 @@ class CSVExtractor(Extractor):
     def __init__(self):
         self.fieldnames = None
 
+    @staticmethod
+    def _decode(data: bytes) -> str:
+        """
+        Decode CSV bytes, tolerating non-UTF-8 sources.
+        """
+        if isinstance(data, str):
+            return data
+        for encoding in ("utf-8-sig", "cp1250"):
+            try:
+                return data.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return data.decode("latin-1", errors="replace")
+
     def extract(self, data: bytes, root_tag: str = ";") -> list[dict]:
         """
         data: Raw bytes from fetcher.

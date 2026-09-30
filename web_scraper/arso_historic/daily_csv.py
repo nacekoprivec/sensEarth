@@ -173,7 +173,6 @@ def parse_daily_csv(raw: bytes, sensors_by_type: Dict[str, Dict[str, Any]]) -> D
 
         # Block water_level when archive is cm but registered unit is m.
         # Live ARSO XML vodostaj is typically cm-scale while sensor_type.unit
-        # is often "m"; converting historic cm->m would disagree with live data.
         if (
             sensor_type == "water_level"
             and normalize_unit(registered_unit) == "m"

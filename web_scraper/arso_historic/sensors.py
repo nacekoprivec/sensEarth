@@ -32,7 +32,7 @@ def fetch_sensors(api_url: str, active_only: bool = True) -> List[Dict[str, Any]
     GET /sensors or /sensors/active and return the JSON list.
 
     active_only defaults True; historic-only stations are often inactive, so
-    the CLI exposes --all-statuses to include them (Fix 2).
+    the CLI exposes --all-statuses to include them.
     """
     path = "/sensors/active" if active_only else "/sensors"
     # Fix 1/3: shared helper retries 5xx and connection errors
@@ -57,7 +57,7 @@ def sifra_of(sensor: Dict[str, Any]) -> Optional[str]:
 
     node_serial is the API alias of metadata.sifra; prefer it, then fall back
     to raw metadata. normalize_sifra strips blanks and collapses integer-like
-    values (e.g. "9275.0" -> "9275") (Fix 5/6/7).
+    values (e.g. "9275.0" -> "9275").
     """
     metadata = sensor.get("metadata")
     meta_sifra = metadata.get("sifra") if isinstance(metadata, dict) else None
@@ -84,8 +84,7 @@ def group_sensors_by_sifra(
     dropped entirely (we cannot pick a target deterministically, Fix 9/10).
 
     strict=True  -> raise ValueError on any conflict (single-station runs).
-    strict=False -> skip conflicted (sifra, type), log, and continue (bulk,
-                    Fix 8).
+    strict=False -> skip conflicted (sifra, type), log, and continue (bulk).
     """
     allowed = sensor_types if sensor_types is not None else HYDRO_SENSOR_TYPES
     by_sifra: Dict[str, Dict[str, Dict[str, Any]]] = defaultdict(dict)
