@@ -172,6 +172,101 @@ def send_measurement_chunks(
     return results, inserted_total
 
 
+def _empty_totals() -> Dict[str, Any]:
+    """Aggregate counters for the end-of-run summary."""
+    return {
+        "ready": 0,
+        "ingested": 0,
+        "ok_stations": 0,
+        "failed_stations": 0,
+        "warnings": 0,
+        "seen": 0,
+        "kept": 0,
+        "skipped_empty": 0,
+        "skipped_bad_ts": 0,
+        "skipped_bad_value": 0,
+        "skipped_no_sensor": 0,
+        "skipped_out_of_range": 0,
+        "skipped_blocked_unit": 0,
+        "skipped_unknown_hash": 0,
+        "duration_s": 0.0,
+    }
+
+
+_STAT_KEYS = (
+    "seen",
+    "kept",
+    "skipped_empty",
+    "skipped_bad_ts",
+    "skipped_bad_value",
+    "skipped_no_sensor",
+    "skipped_out_of_range",
+    "skipped_blocked_unit",
+    "skipped_unknown_hash",
+)
+
+
+def _accumulate_station_stats(totals: Dict[str, Any], stats: Dict[str, Any]) -> None:
+    for key in _STAT_KEYS:
+        totals[key] += int(stats.get(key, 0) or 0)
+
+
+def _log_overall_summary(
+    *,
+    dry_run: bool,
+    year_from: int,
+    year_to: int,
+    station_count: int,
+    totals: Dict[str, Any],
+) -> None:
+    """
+    Emit a scannable end-of-run block so operators can spot failures quickly.
+    """
+    mode = "DRY-RUN" if dry_run else "INGEST"
+    ok = totals["ok_stations"]
+    failed = totals["failed_stations"]
+    ready = totals["ready"]
+    ingested = totals["ingested"]
+    duration = totals["duration_s"]
+
+    # Flag common trouble signs in the header line
+    if failed:
+        outcome = "WITH_FAILURES"
+    elif station_count == 0:
+        outcome = "NO_STATIONS"
+    elif not dry_run and ready > 0 and ingested == 0:
+        outcome = "NO_INSERTS"
+    elif not dry_run and ready > 0 and ingested < ready:
+        outcome = "PARTIAL_INSERTS"
+    else:
+        outcome = "OK"
+
+    logger.info("[arso_historic] ===== OVERALL SUMMARY =====")
+    logger.info(
+        f"[arso_historic] outcome={outcome} mode={mode} "
+        f"years={year_from}-{year_to} duration_s={duration:.1f}"
+    )
+    logger.info(
+        f"[arso_historic] stations: total={station_count} "
+        f"ok={ok} failed={failed}"
+    )
+    logger.info(
+        f"[arso_historic] measurements: seen={totals['seen']} "
+        f"kept={totals['kept']} ready={ready} ingested={ingested}"
+    )
+    logger.info(
+        f"[arso_historic] skips: empty={totals['skipped_empty']} "
+        f"out_of_range={totals['skipped_out_of_range']} "
+        f"blocked_unit={totals['skipped_blocked_unit']} "
+        f"bad_ts={totals['skipped_bad_ts']} "
+        f"bad_value={totals['skipped_bad_value']} "
+        f"no_sensor={totals['skipped_no_sensor']} "
+        f"unknown_hash={totals['skipped_unknown_hash']}"
+    )
+    logger.info(f"[arso_historic] warnings={totals['warnings']}")
+    logger.info("[arso_historic] ============================")
+
+
 def run(
     *,
     sifra: Optional[str] = None,
@@ -189,6 +284,7 @@ def run(
     sifra=None processes every grouped station (CLI requires --all-stations).
     The provenance gate runs only when dry_run=False (Fix 24/26).
     """
+    started = time.monotonic()
     api = api_url or default_api_url()
     if year_to is None:
         year_to = datetime.now(timezone.utc).year
@@ -228,7 +324,7 @@ def run(
     )
 
     reports = []
-    totals = {"ready": 0, "ingested": 0, "failed_stations": 0}
+    totals = _empty_totals()
 
     for station_id, by_type in sorted(stations.items()):
         try:
@@ -237,10 +333,13 @@ def run(
                 by_type,
                 year_from,
                 year_to,
-                include_measurements=not dry_run, 
+                include_measurements=not dry_run,
             )
             reports.append({k: v for k, v in report.items() if k != "measurements"})
+            totals["ok_stations"] += 1
             totals["ready"] += report["stats"]["ready_to_ingest"]
+            totals["warnings"] += len(report.get("warnings") or [])
+            _accumulate_station_stats(totals, report["stats"])
 
             for warning in report["warnings"]:
                 logger.warning(f"[arso_historic] sifra={station_id}: {warning}")
@@ -256,9 +355,8 @@ def run(
                 _, inserted = send_measurement_chunks(
                     api, report["measurements"], chunk_size=chunk_size
                 )
-                totals["ingested"] += inserted  
+                totals["ingested"] += inserted
 
-        # Fix 20: known failures fail just this station; unexpected errors are
         # logged with traceback (still isolated, not silently swallowed).
         except (RequestException, ValueError, RuntimeError, KeyError) as exc:
             totals["failed_stations"] += 1
@@ -272,9 +370,17 @@ def run(
             )
             reports.append({"sifra": station_id, "error": str(exc)})
 
-        # Fix 22: optional throttle between stations for --all-stations runs
         if station_delay_s > 0:
             time.sleep(station_delay_s)
+
+    totals["duration_s"] = round(time.monotonic() - started, 3)
+    _log_overall_summary(
+        dry_run=dry_run,
+        year_from=year_from,
+        year_to=year_to,
+        station_count=len(stations),
+        totals=totals,
+    )
 
     return {
         "dry_run": dry_run,

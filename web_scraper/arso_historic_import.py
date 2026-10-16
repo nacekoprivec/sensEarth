@@ -136,13 +136,7 @@ def main() -> int:
         return _exit_code(result, dry_run)
 
     mode_label = "DRY-RUN" if result["dry_run"] else "INGEST"
-    print(
-        f"[{mode_label}] stations={result['station_count']} "
-        f"years={result['year_from']}-{result['year_to']} "
-        f"ready={result['totals']['ready']} "
-        f"ingested={result['totals']['ingested']} "
-        f"failed={result['totals']['failed_stations']}"
-    )
+    totals = result["totals"]
     for report in result["reports"]:
         if "error" in report:
             print(f"  sifra={report['sifra']} ERROR: {report['error']}")
@@ -170,6 +164,29 @@ def main() -> int:
             print(f"    WARN: {warning}")
         if report.get("sample"):
             print(f"    sample: {report['sample'][:2]}")
+
+    # Overall summary last so it stays visible after long per-station output
+    print(
+        f"[{mode_label}] OVERALL "
+        f"years={result['year_from']}-{result['year_to']} "
+        f"duration_s={totals.get('duration_s', 0):.1f} "
+        f"stations={result['station_count']} "
+        f"ok={totals.get('ok_stations', 0)} "
+        f"failed={totals['failed_stations']} "
+        f"ready={totals['ready']} "
+        f"ingested={totals['ingested']} "
+        f"warnings={totals.get('warnings', 0)}"
+    )
+    print(
+        f"[{mode_label}] SKIPS "
+        f"empty={totals.get('skipped_empty', 0)} "
+        f"out_of_range={totals.get('skipped_out_of_range', 0)} "
+        f"blocked_unit={totals.get('skipped_blocked_unit', 0)} "
+        f"bad_ts={totals.get('skipped_bad_ts', 0)} "
+        f"bad_value={totals.get('skipped_bad_value', 0)} "
+        f"no_sensor={totals.get('skipped_no_sensor', 0)} "
+        f"unknown_hash={totals.get('skipped_unknown_hash', 0)}"
+    )
 
     return _exit_code(result, dry_run)
 
